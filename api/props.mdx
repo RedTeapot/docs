@@ -1,0 +1,372 @@
+---
+title: "XcaTree Component Props Reference"
+sidebarTitle: "Props"
+description: "Complete reference for all XcaTree Vue component props, organized by feature area. Includes types, defaults, and usage notes for every attribute."
+---
+
+XcaTree accepts a rich set of props that control everything from your raw data shape to drag-and-drop behaviour and toolbar layout. Props are grouped below by feature area — scan the overview table first, then refer to the detailed `<ParamField>` blocks for types, defaults, and usage notes. All props are optional unless marked **Required**.
+
+## Quick-scan overview
+
+| Prop | Type | Default | Group |
+|---|---|---|---|
+| `options` | `Array \| Function \| Promise` | `[]` | Data |
+| `optionValueKey` | `string \| OptionValueResolver` | `'value'` | Field Mapping |
+| `optionTextKey` | `string \| OptionTextResolver` | `'text'` | Field Mapping |
+| `optionDisabledKey` | `string \| OptionDisabledResolver` | `'disabled'` | Field Mapping |
+| `optionDisabledText` | `string \| OptionDisabledTextProvider` | `'已禁用'` | Field Mapping |
+| `optionChildrenKey` | `string \| OptionChildrenResolver` | `'children'` | Field Mapping |
+| `optionIconKey` | `string \| OptionIconResolver` | `null` | Field Mapping |
+| `optionChildrenFetcher` | `OptionChildrenFetcher` | `null` | Async Loading |
+| `childrenFetchMethod` | `OptionChildrenFetcher` | `null` | Async Loading |
+| `isLazy` | `IsLazyResolver` | *(see below)* | Async Loading |
+| `isChildrenEmptyOptionExpandable` | `boolean \| IsChildrenEmptyExpandableResolver` | `false` | Async Loading |
+| `draggable` | `boolean \| OptionDraggableResolver` | `false` | Drag & Drop |
+| `optionMatcher` | `OptionMatcher` | `null` | Filtering |
+| `expandOnFilter` | `boolean` | `true` | Filtering |
+| `selectedValues` | `(string \| number)[]` | `[]` | Selection |
+| `value` | `string \| number \| (string \| number)[]` | `null` | Selection |
+| `multiple` | `boolean` | `false` | Selection |
+| `disabledOptionSelectable` | `boolean` | `false` | Selection |
+| `showToolbar` | `boolean` | `true` | Toolbar |
+| `objectName` | `string` | `''` | Toolbar |
+| `links` | `Link[]` | `[]` | Toolbar |
+| `toolbarOptions` | `ToolbarOption[]` | `[]` | Toolbar |
+| `optionLinks` | `OptionLink[]` | `[]` | Node Operations |
+| `defaultExpandAll` | `boolean` | `false` | Expand & Layout |
+| `indentSize` | `number` | `20` | Expand & Layout |
+| `placeholder` | `string` | `'暂无数据'` | Display |
+| `loadingText` | `string` | `'加载中...'` | Display |
+| `folderIcon` | `string` | `null` | Display |
+| `folderOpenIcon` | `string` | `null` | Display |
+| `fileIcon` | `string` | `null` | Display |
+| `loadingIcon` | `string` | `null` | Display |
+
+---
+
+## Data
+
+<ParamField body="options" type="OptionItem[] | Promise<OptionItem[]> | (() => OptionItem | OptionItem[] | Promise<OptionItem | OptionItem[]>)" default="[]">
+  The tree's data source. You can supply it in three forms:
+
+  - **Array** — used directly as the tree data.
+  - **Function** — called once on mount; the return value may itself be an array or a `Promise`.
+  - **Promise** — the tree renders its loading state until the promise resolves.
+
+  All incoming data is normalised internally via `toInternalNode`, so you never need to restructure your payload before passing it in.
+
+  ```vue
+  <!-- Static array -->
+  <xca-tree :options="nodes" />
+
+  <!-- Async function -->
+  <xca-tree :options="() => fetchDepartments()" />
+  ```
+</ParamField>
+
+---
+
+## Field Mapping
+
+Use these props to tell XcaTree which fields in your data correspond to its internal canonical fields (`value`, `text`, `disabled`, `children`, `icon`). Every key prop accepts either a dot-separated path string or a resolver function bound to the component instance.
+
+<ParamField body="optionValueKey" type="string | OptionValueResolver" default="'value'">
+  The field name (or resolver function) used to read each node's unique identifier.
+
+  - **String** — supports dot-separated deep paths, e.g. `'meta.id'` reads `node.meta.id`.
+  - **Function** — receives the raw `OptionItem`; `this` points to the XcaTree instance.
+
+  ```vue
+  <!-- Deep path -->
+  <xca-tree option-value-key="meta.id" />
+
+  <!-- Custom resolver -->
+  <xca-tree :option-value-key="item => item.deptCode" />
+  ```
+</ParamField>
+
+<ParamField body="optionTextKey" type="string | OptionTextResolver" default="'text'">
+  The field name (or resolver function) used to read each node's display label. Accepts the same string/function forms as `optionValueKey`.
+
+  ```vue
+  <xca-tree option-text-key="name" />
+  ```
+</ParamField>
+
+<ParamField body="optionDisabledKey" type="string | OptionDisabledResolver" default="'disabled'">
+  The field name (or resolver function) that determines whether a node is disabled. Accepts the same string/function forms as `optionValueKey`.
+
+  ```vue
+  <xca-tree option-disabled-key="isReadonly" />
+  ```
+</ParamField>
+
+<ParamField body="optionDisabledText" type="string | OptionDisabledTextProvider" default="'已禁用'">
+  The tooltip text shown on disabled nodes.
+
+  - **String** — every disabled node shows the same message.
+  - **Function** — receives the raw node and returns a per-node message; `this` points to the XcaTree instance. Falls back to `'已禁选'` if the function throws.
+
+  ```vue
+  <xca-tree option-disabled-text="Not available" />
+
+  <xca-tree :option-disabled-text="item => `${item.name} is locked`" />
+  ```
+</ParamField>
+
+<ParamField body="optionChildrenKey" type="string | OptionChildrenResolver" default="'children'">
+  The field name (or resolver function) used to read each node's child array. Accepts the same string/function forms as `optionValueKey`.
+
+  > **Note:** When you supply a function, `addOption` cannot write children back into the original data because the component cannot locate the array to mutate.
+
+  ```vue
+  <xca-tree option-children-key="subItems" />
+  ```
+</ParamField>
+
+<ParamField body="optionIconKey" type="string | OptionIconResolver" default="null">
+  The field name (or resolver function) used to read each node's icon. The icon value should be an SVG string or an image URL. When `null`, nodes fall back to the built-in folder/file icons.
+
+  ```vue
+  <xca-tree option-icon-key="iconUrl" />
+
+  <xca-tree :option-icon-key="item => item.type === 'file' ? filesvg : folderSvg" />
+  ```
+</ParamField>
+
+---
+
+## Async Loading
+
+XcaTree supports on-demand child loading. A node triggers async loading only when **both** of the following are true: (1) `optionChildrenFetcher` (or `childrenFetchMethod`) is configured, and (2) the node's `lazy` field is `true` or `isLazy` returns `true` for that node.
+
+<ParamField body="optionChildrenFetcher" type="OptionChildrenFetcher" default="null">
+  An async function that loads a node's children when it is first expanded. The function receives the raw node data (not the internal format) and may return a single `OptionItem`, an array, or a `Promise` resolving to either. After the fetch completes, the `lazy` flag is cleared automatically so subsequent expansions skip the network call.
+
+  ```vue
+  <xca-tree :option-children-fetcher="loadChildren" />
+  ```
+
+  ```js
+  async loadChildren(item) {
+    const { data } = await api.getChildren(item.id);
+    return data; // OptionItem[]
+  }
+  ```
+</ParamField>
+
+<ParamField body="childrenFetchMethod" type="OptionChildrenFetcher" default="null">
+  Legacy alias for `optionChildrenFetcher`. When both props are provided, `optionChildrenFetcher` takes precedence. Prefer `optionChildrenFetcher` in new code.
+</ParamField>
+
+<ParamField body="isLazy" type="IsLazyResolver">
+  A function that decides at runtime whether a given node should be treated as a lazy-load node. `this` inside the function points to the XcaTree instance.
+
+  **Priority order:**
+  1. If the raw node has `lazy === true`, it is always treated as lazy.
+  2. Otherwise, `isLazy(node)` is called; `true` means lazy.
+
+  **Default behaviour** (when you omit this prop): any node whose children array is empty is treated as lazy.
+
+  > **Tip:** Override this default when you have genuine leaf nodes with empty `children` arrays that should not trigger a fetch.
+
+  ```vue
+  <!-- Only nodes flagged with hasMore trigger lazy loading -->
+  <xca-tree :is-lazy="node => !!node.hasMore" />
+  ```
+</ParamField>
+
+<ParamField body="isChildrenEmptyOptionExpandable" type="boolean | IsChildrenEmptyExpandableResolver" default="false">
+  Controls whether nodes with an empty `children` array (i.e. `[]`) display an expand/collapse arrow. When `true` (or when the function returns `true` for a node), the node can be expanded and shows a placeholder inside.
+
+  This prop has no effect on nodes that already have children, on lazy-load nodes, or on nodes where `children` is `null` or `undefined`.
+
+  ```vue
+  <!-- All empty-children nodes are expandable -->
+  <xca-tree :is-children-empty-option-expandable="true" />
+
+  <!-- Only folder-type nodes are expandable when empty -->
+  <xca-tree :is-children-empty-option-expandable="node => node.type === 'folder'" />
+  ```
+</ParamField>
+
+---
+
+## Drag & Drop
+
+<ParamField body="draggable" type="boolean | OptionDraggableResolver" default="false">
+  Enables drag-and-drop reordering of tree nodes.
+
+  - `false` — drag is disabled entirely.
+  - `true` — all nodes are draggable with no restrictions.
+  - **Function** — called for each potential drop with `(draggingNode, targetNode, dropType)` and should return `true` to permit the drop or `false` to cancel it. `dropType` is `'before'`, `'after'`, or `'inner'`.
+
+  When a drop completes, the `sortchange` event fires. The implementation uses the HTML5 Drag and Drop API with no external dependencies.
+
+  ```vue
+  <!-- Allow dragging only within the same parent -->
+  <xca-tree
+    :draggable="(dragging, target, type) =>
+      dragging.parentId === target.parentId || type === 'inner'"
+  />
+  ```
+</ParamField>
+
+---
+
+## Filtering
+
+<ParamField body="optionMatcher" type="OptionMatcher" default="null">
+  A function that receives a raw `OptionItem` and returns `true` if the node should be visible in a filtered view. Providing this prop also activates a search icon in the toolbar; clicking it expands a search input that calls your matcher on every keystroke.
+
+  You can also trigger filtering programmatically via the [`filterOptions`](#filterOptions) method.
+
+  ```vue
+  <xca-tree :option-matcher="node => node.text.toLowerCase().includes(query)" />
+  ```
+</ParamField>
+
+<ParamField body="expandOnFilter" type="boolean" default="true">
+  When `true`, all ancestor nodes of matching results are automatically expanded during a filter operation so matching nodes are visible without manual expanding. Set to `false` if you manage expand state yourself.
+</ParamField>
+
+---
+
+## Selection
+
+<ParamField body="selectedValues" type="(string | number)[]" default="[]">
+  An array of node `value`s that should be selected when the component initialises. Use this for an uncontrolled initial selection. For ongoing controlled selection, prefer `value` or the `setSelectedOptionValues` method.
+</ParamField>
+
+<ParamField body="value" type="string | number | (string | number)[]" default="null">
+  The controlled selected value(s), compatible with `v-model`.
+
+  - In **single** mode (`multiple: false`) — pass a single `string | number`.
+  - In **multi** mode (`multiple: true`) — pass an array.
+
+  ```vue
+  <xca-tree v-model="selectedDeptId" />
+  ```
+</ParamField>
+
+<ParamField body="multiple" type="boolean" default="false">
+  When `true`, the component operates in multi-select mode. The `change` event will emit an array for `value` and `itemOrItems` instead of a single item.
+</ParamField>
+
+<ParamField body="disabledOptionSelectable" type="boolean" default="false">
+  When `true`, users can click and select disabled nodes. The node still renders with its disabled visual style and tooltip, but the click is no longer swallowed.
+</ParamField>
+
+---
+
+## Toolbar
+
+<ParamField body="showToolbar" type="boolean" default="true">
+  Shows or hides the built-in toolbar. The toolbar contains: search, locate-current, expand-all, collapse-all, and a "more" menu.
+</ParamField>
+
+<ParamField body="objectName" type="string" default="''">
+  A label displayed on the left side of the toolbar — useful for identifying what the tree represents, e.g. `"Select department"`.
+</ParamField>
+
+<ParamField body="links" type="Link[]" default="[]">
+  An array of `Link` objects that populate the toolbar's "more" dropdown. Each entry needs at minimum `text` and `onclick`. Use `links` for simple action lists; use `toolbarOptions` when you need icon buttons in the toolbar bar itself.
+
+  ```vue
+  <xca-tree
+    :links="[
+      { text: 'Import', onclick() { openImport(); } },
+      { text: 'Export', onclick() { exportAll(); }, confirmText: 'Export everything?' }
+    ]"
+  />
+  ```
+</ParamField>
+
+<ParamField body="toolbarOptions" type="ToolbarOption[]" default="[]">
+  An array of `ToolbarOption` objects rendered as icon buttons directly in the toolbar. Each entry requires `key` and `onClick`; `icon`, `text`, `tooltip`, and `disabled` are optional.
+
+  ```vue
+  <xca-tree
+    :toolbar-options="[
+      { key: 'add', icon: addSvg, tooltip: 'Add root node', onClick() { addRoot(); } }
+    ]"
+  />
+  ```
+</ParamField>
+
+---
+
+## Node Operations
+
+<ParamField body="optionLinks" type="OptionLink[]" default="[]">
+  An array of `OptionLink` objects that appear as a context menu on each node (visible on hover). Use this to provide per-node actions such as Edit or Delete. Each entry requires `text` and `onclick`; `confirmText`, `isVisible`, and `icon` are optional.
+
+  ```vue
+  <xca-tree
+    :option-links="[
+      {
+        text: 'Edit',
+        onclick(item) { openEditDialog(item); }
+      },
+      {
+        text: 'Delete',
+        onclick(item) { this.removeOption(item); },
+        confirmText: item => `Delete ${item.text}?`,
+        isVisible: item => !item.protected
+      }
+    ]"
+  />
+  ```
+</ParamField>
+
+---
+
+## Expand & Layout
+
+<ParamField body="defaultExpandAll" type="boolean" default="false">
+  When `true`, every node that has children is expanded when the tree first renders. This does **not** trigger async loading for lazy nodes.
+</ParamField>
+
+<ParamField body="indentSize" type="number" default="20">
+  The horizontal indentation in pixels applied to each nesting level. Increase this value to create more visual depth between levels.
+
+  ```vue
+  <xca-tree :indent-size="28" />
+  ```
+</ParamField>
+
+---
+
+## Display
+
+<ParamField body="placeholder" type="string" default="'暂无数据'">
+  The text shown when the tree has no data, and also the text shown inside expanded nodes whose `children` array is empty (when `isChildrenEmptyOptionExpandable` is active). Override this for localisation.
+
+  ```vue
+  <xca-tree placeholder="No items found" />
+  ```
+</ParamField>
+
+<ParamField body="loadingText" type="string" default="'加载中...'">
+  The loading indicator text shown while the root `options` promise is pending and while a lazy node's children are being fetched.
+
+  ```vue
+  <xca-tree loading-text="Loading…" />
+  ```
+</ParamField>
+
+<ParamField body="folderIcon" type="string" default="null">
+  A custom icon for collapsed folder (branch) nodes. Pass an inline SVG string or an image URL. Falls back to the built-in SVG when `null`.
+</ParamField>
+
+<ParamField body="folderOpenIcon" type="string" default="null">
+  A custom icon for expanded folder nodes. Falls back to the built-in open-folder SVG when `null`.
+</ParamField>
+
+<ParamField body="fileIcon" type="string" default="null">
+  A custom icon for leaf (file) nodes — those with no children. Falls back to the built-in file SVG when `null`.
+</ParamField>
+
+<ParamField body="loadingIcon" type="string" default="null">
+  A custom icon shown while a node's children are loading asynchronously. Falls back to the built-in spinner SVG when `null`.
+</ParamField>

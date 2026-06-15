@@ -1,0 +1,180 @@
+---
+title: "Customize XcaTree Colors and Dark Mode Theming"
+sidebarTitle: "Theming"
+description: "Override XcaTree's appearance using CSS Variables. Enable dark mode with data-xca-theme='dark' or auto-detect system preference with XCA.initTheme()."
+---
+
+XcaTree ships with a complete CSS Variable system that gives you precise control over every visual aspect of the component — colors, spacing, typography, and more. You can scope overrides to a single instance or apply them globally, and the same system powers the built-in dark mode.
+
+## CSS Variables reference
+
+All variables are declared on `.xca-tree` and `.xca-tree-drag-ghost`. Override them in your own stylesheet to change the component's appearance. The table below lists every exposed variable along with its light-mode default.
+
+### Color variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `--xca-tree-bg` | `#ffffff` | Main background color |
+| `--xca-tree-hover-bg` | `#f5f7fa` | Node hover background |
+| `--xca-tree-selected-bg` | `#e6f0ff` | Selected node background |
+| `--xca-tree-selected-color` | `#409eff` | Selected node text and accent color |
+| `--xca-tree-active-bg` | `#eff5ff` | Active (focused/clicked) node background |
+| `--xca-tree-active-color` | `#005ce6` | Active node text color |
+| `--xca-tree-border-color` | `#e4e7ed` | Border and divider color |
+| `--xca-tree-text-color` | `#303133` | Primary text color |
+| `--xca-tree-text-light` | `#909399` | Secondary / muted text color |
+| `--xca-tree-icon-color` | `#909399` | Icon fill color |
+| `--xca-tree-arrow-color` | `#c0c4cc` | Expand/collapse arrow color |
+| `--xca-tree-arrow-hover-color` | `#606266` | Arrow color on node hover |
+| `--xca-tree-line-color` | `#e7e5e4` | Connector line color |
+| `--xca-tree-input-bg` | `#ffffff` | Search input background |
+
+### Layout and spacing variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `--xca-tree-arrow-size` | `20px` | Width and height of the arrow hit area |
+| `--xca-tree-icon-size` | `16px` | Width and height of node icons |
+| `--xca-tree-indent-size` | `20px` | Per-level indentation width |
+| `--xca-tree-node-height` | `32px` | Row height for each tree node |
+| `--xca-tree-toolbar-height` | `40px` | Toolbar height |
+| `--xca-tree-border-radius` | `6px` | Outer border radius of the component |
+| `--xca-tree-font-size` | `13px` | Base font size |
+| `--xca-tree-transition` | `none` | Transition shorthand applied to interactive elements |
+
+## Overriding variables in your CSS
+
+To customize the component, declare your overrides on the `.xca-tree` selector — or on any ancestor element to scope changes to a specific instance.
+
+```css
+/* Global override — affects every xca-tree on the page */
+.xca-tree {
+  --xca-tree-node-height: 36px;
+  --xca-tree-indent-size: 24px;
+  --xca-tree-font-size: 14px;
+  --xca-tree-border-radius: 4px;
+}
+
+/* Scoped override — only the tree inside .my-sidebar */
+.my-sidebar .xca-tree {
+  --xca-tree-bg: #fafafa;
+  --xca-tree-border-color: #d9d9d9;
+}
+```
+
+<Tip>
+  Because the variables are declared on `.xca-tree` itself, a plain CSS override with the same specificity is enough. You do not need `!important`.
+</Tip>
+
+## Light mode (default)
+
+XcaTree renders in light mode by default. The default variable values listed in the table above are the light-mode values — no additional configuration is required.
+
+## Dark mode
+
+XcaTree's dark mode is activated by setting `data-xca-theme="dark"` on the `<html>` element. The component CSS watches for this attribute and swaps in the dark-mode variable values automatically. The component itself does **not** use `@media (prefers-color-scheme)` directly — all theme switching flows through the `data-xca-theme` attribute.
+
+### Dark mode variable values
+
+| Variable | Dark value | Notes |
+|---|---|---|
+| `--xca-tree-bg` | `#1e1e1e` | Deep dark background |
+| `--xca-tree-hover-bg` | `#2a2d2e` | Subtle hover |
+| `--xca-tree-selected-bg` | `#094771` | VS Code–style selection blue |
+| `--xca-tree-selected-color` | `#4da6ff` | Bright accent for selected text |
+| `--xca-tree-border-color` | `#3c3c3c` | Muted border |
+| `--xca-tree-text-color` | `#cccccc` | Soft white text |
+| `--xca-tree-text-light` | `#858585` | Dimmed secondary text |
+| `--xca-tree-icon-color` | `#858585` | Dimmed icon |
+| `--xca-tree-line-color` | `#3c3c3c` | Connector line |
+| `--xca-tree-active-color` | `#4da6ff` | Active node accent |
+
+### Activate dark mode manually
+
+Set the attribute directly in HTML or via JavaScript:
+
+<CodeGroup>
+```html HTML attribute
+<html data-xca-theme="dark">
+```
+
+```js JavaScript
+// Force dark mode
+document.documentElement.setAttribute('data-xca-theme', 'dark')
+
+// Force light mode
+document.documentElement.setAttribute('data-xca-theme', 'light')
+```
+</CodeGroup>
+
+### Auto-detect system preference with `XCA.initTheme()`
+
+The recommended approach is to call `XCA.initTheme()` once at page load. It reads the user's OS preference via `prefers-color-scheme`, sets `data-xca-theme` accordingly, and then monitors for system-level theme changes so the page updates automatically whenever the user toggles their OS setting.
+
+```html
+<!-- UMD bundle — include before your app scripts -->
+<script src="dist/xca.umd.js"></script>
+<script>
+  XCA.initTheme()
+</script>
+```
+
+```js
+// ESM
+import { initTheme } from 'xca'
+initTheme()
+```
+
+<Note>
+  Call `XCA.initTheme()` as early as possible — ideally before your stylesheet loads — to prevent a flash of the wrong theme on page load.
+</Note>
+
+`initTheme()` also persists a manually chosen theme to `localStorage` (key: `xca-theme`). If a stored preference exists, it takes priority over the OS setting. When the user has not chosen a preference, the component continues to follow system changes in real time.
+
+To let the user override the theme in your UI, use `XCA.setTheme()`:
+
+```js
+// Force a specific theme and persist the choice
+XCA.setTheme('dark')
+XCA.setTheme('light')
+
+// Remove the stored preference and resume following the OS
+XCA.setTheme('auto')
+```
+
+To prevent the flash entirely when rendering server-side or in a `<head>` inline script, you can use this minimal snippet before any CSS loads:
+
+```html
+<script>
+  (function () {
+    var s = localStorage.getItem('xca-theme')
+    var t = s || (matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light')
+    document.documentElement.setAttribute('data-xca-theme', t)
+  })()
+</script>
+```
+
+## Custom brand color example
+
+To apply your brand's primary color as the selection accent, override just the relevant variables. You do not need to touch the layout or typography variables.
+
+```css
+.xca-tree {
+  /* Brand: deep teal */
+  --xca-tree-selected-bg: #e0f7f4;
+  --xca-tree-selected-color: #00897b;
+  --xca-tree-active-bg: #e8f5e9;
+  --xca-tree-active-color: #00695c;
+}
+
+/* Keep brand color in dark mode too */
+html[data-xca-theme="dark"] .xca-tree {
+  --xca-tree-selected-bg: #00352e;
+  --xca-tree-selected-color: #4db6ac;
+  --xca-tree-active-color: #4db6ac;
+}
+```
+
+<Tip>
+  Scope your brand overrides under your own component class (e.g. `.my-app .xca-tree`) so they coexist cleanly with the built-in dark-mode rules without raising specificity conflicts.
+</Tip>

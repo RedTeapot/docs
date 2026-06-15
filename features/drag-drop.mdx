@@ -1,0 +1,152 @@
+---
+title: "Drag-and-Drop Sorting with XcaTree"
+sidebarTitle: "Drag & Drop"
+description: "Enable drag-and-drop node reordering with the draggable prop. Control which moves are allowed and sync changes via the sortchange event."
+---
+
+XcaTree includes built-in drag-and-drop sorting powered by the HTML5 Drag and Drop API — no external libraries required. Set the `draggable` prop to let users reorder nodes by dragging them within the tree, then react to each completed move through the `sortchange` event to keep your data in sync.
+
+## Enable drag-and-drop
+
+Pass `true` to the `draggable` prop to allow all nodes to be dragged and dropped anywhere in the tree.
+
+```html
+<xca-tree
+  :options="treeData"
+  :draggable="true"
+  @sortchange="onSortChange"
+/>
+```
+
+<Note>
+  `draggable` defaults to `false`. Drag-and-drop is fully opt-in — nothing changes until you explicitly enable it.
+</Note>
+
+## Understand drop types
+
+When a user drops a node, XcaTree classifies the result as one of three drop types:
+
+| `dropType` | Meaning |
+|---|---|
+| `'before'` | The dragged node becomes the sibling immediately **above** the target node |
+| `'after'` | The dragged node becomes the sibling immediately **below** the target node |
+| `'inner'` | The dragged node becomes a **child** of the target node |
+
+The drop type is determined by where the user's pointer lands relative to the target row and how far left or right they drag horizontally before releasing. Dragging further left promotes the node up a level; dragging further right nests it deeper.
+
+## Sync changes with `sortchange`
+
+Listen to the `sortchange` event to receive the dragged node, the target node, and the resolved drop type. Use this information to update your own data model.
+
+<ParamField body="draggingItem" type="OptionItem" required>
+  The raw data object of the node being dragged.
+</ParamField>
+
+<ParamField body="dropItem" type="OptionItem | null" required>
+  The raw data object of the target node. May be `null` in edge cases where no target node is resolved.
+</ParamField>
+
+<ParamField body="dropType" type="'before' | 'after' | 'inner'" required>
+  How the dragged node was positioned relative to the target.
+</ParamField>
+
+```html
+<xca-tree
+  :options="treeData"
+  :draggable="true"
+  @sortchange="onSortChange"
+/>
+```
+
+```js
+methods: {
+  onSortChange(draggingItem, dropItem, dropType) {
+    // Remove the node from its current location in your data
+    const sourceList = this.findParentList(draggingItem)
+    const sourceIndex = sourceList.indexOf(draggingItem)
+    sourceList.splice(sourceIndex, 1)
+
+    if (dropType === 'inner') {
+      // Nest inside the target
+      if (!dropItem.children) this.$set(dropItem, 'children', [])
+      dropItem.children.push(draggingItem)
+    } else {
+      // Place before or after the target sibling
+      const targetList = this.findParentList(dropItem)
+      const targetIndex = targetList.indexOf(dropItem)
+      const insertAt = dropType === 'before' ? targetIndex : targetIndex + 1
+      targetList.splice(insertAt, 0, draggingItem)
+    }
+  }
+}
+```
+
+<Tip>
+  The event parameters are direct references to your original data objects, so mutations you make inside `onSortChange` are reflected immediately without needing to replace the whole `options` array.
+</Tip>
+
+## Control which moves are allowed
+
+Pass a function to `draggable` instead of `true` to decide per-drop whether the move is permitted. Return `true` to allow it or `false` to block it. XcaTree calls this function with the dragging node, the target node, and the proposed drop type before finalising any move.
+
+The function signature matches the `OptionDraggableResolver` type:
+
+```ts
+(draggingNode: OptionItem, targetNode: OptionItem, dropType: 'before' | 'after' | 'inner') => boolean
+```
+
+### Example: restrict reordering to same-level nodes
+
+The example below blocks any drop that would change the nesting depth of a node — users can reorder siblings freely but cannot promote or demote nodes to different levels.
+
+```html
+<xca-tree
+  :options="treeData"
+  :draggable="canDrop"
+  @sortchange="onSortChange"
+/>
+```
+
+```js
+methods: {
+  canDrop(draggingNode, targetNode, dropType) {
+    // Allow 'before' and 'after' (same level) but block 'inner' (nesting)
+    if (dropType === 'inner') return false
+
+    // Also ensure both nodes share the same parent
+    return draggingNode.parentId === targetNode.parentId
+  },
+
+  onSortChange(draggingItem, dropItem, dropType) {
+    // Update data model as shown above
+  }
+}
+```
+
+<Warning>
+  The resolver function is called frequently as the user moves the pointer. Keep it fast and side-effect free — avoid API calls or heavy computation inside the function body.
+</Warning>
+
+## Full API reference
+
+<ParamField body="draggable" type="boolean | OptionDraggableResolver" default="false">
+  Controls whether drag-and-drop is enabled.
+
+  - `false` — drag-and-drop is disabled (default).
+  - `true` — all nodes are draggable and any drop position is allowed.
+  - Function `(draggingNode, targetNode, dropType) => boolean` — called before each potential drop; return `true` to permit the move or `false` to block it.
+</ParamField>
+
+## Steps to add drag-and-drop
+
+<Steps>
+  <Step title="Enable the prop">
+    Add `:draggable="true"` (or a resolver function) to your `<xca-tree>` element.
+  </Step>
+  <Step title="Handle the event">
+    Add a `@sortchange` listener and update your data model inside the callback using the provided `draggingItem`, `dropItem`, and `dropType` arguments.
+  </Step>
+  <Step title="Optionally restrict moves">
+    Replace `true` with a resolver function to block specific drop combinations — for example, preventing cross-branch moves or drops into read-only parent nodes.
+  </Step>
+</Steps>

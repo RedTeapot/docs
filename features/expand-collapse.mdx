@@ -1,0 +1,160 @@
+---
+title: "Expand, Collapse, and Locate Nodes in XcaTree"
+sidebarTitle: "Expand & Collapse"
+description: "Control node expansion with defaultExpandAll, expandAll, collapseAll, and expandNode. Use locateCurrent to scroll to the active selection."
+---
+
+XcaTree gives you full control over which nodes are open and where the viewport is focused. You can start the tree fully expanded, let users open and close branches manually, drive expansion programmatically from your own buttons, and scroll instantly to any selected node — even when it is buried several levels deep.
+
+## Start fully expanded
+
+Set `defaultExpandAll` to `true` to render the tree with every branch open on the first paint. This has no effect on subsequent data refreshes; expand state after initialization is yours to control.
+
+```html
+<xca-tree :options="treeData" :default-expand-all="true" />
+```
+
+<Note>
+  `defaultExpandAll` only applies at mount time. Calling `updateOptions` later resets all nodes to collapsed regardless of this prop.
+</Note>
+
+## Expand and collapse all nodes
+
+Call `expandAll()` or `collapseAll()` on the component instance at any time. A common pattern is wiring them to toolbar buttons outside the tree:
+
+```html
+<template>
+  <div>
+    <button @click="$refs.tree.expandAll()">Expand all</button>
+    <button @click="$refs.tree.collapseAll()">Collapse all</button>
+
+    <xca-tree ref="tree" :options="treeData" />
+  </div>
+</template>
+```
+
+<Note>
+  `expandAll()` opens every node that already has children in memory. It does **not** trigger lazy-load fetches for nodes whose children haven't been loaded yet.
+</Note>
+
+## Expand a specific node
+
+Use `expandNode(value)` to open a single node by its value. XcaTree also expands all ancestor nodes so the target is visible, then scrolls it into view.
+
+```js
+// Expand the node whose value is 'team-frontend'
+this.$refs.tree.expandNode('team-frontend')
+```
+
+If the target node has an empty `children` array, `expandNode` creates a placeholder region beneath it (showing the `placeholder` text) rather than silently doing nothing.
+
+## Locate the current selection
+
+When the selected node is off-screen — for example after the user navigates away or after a programmatic selection — call `locateCurrent()` to bring it back into view. The method expands any collapsed ancestors and scrolls to the node.
+
+<Steps>
+  <Step title="Set up the ref and selection">
+    ```html
+    <template>
+      <div>
+        <button @click="selectAndLocate">Select deep node</button>
+        <xca-tree ref="tree" :options="treeData" @change="onSelect" />
+      </div>
+    </template>
+    ```
+  </Step>
+
+  <Step title="Select programmatically then locate">
+    Call `setSelectedOptionValues` first, then wait a tick before calling `locateCurrent` so the DOM has updated.
+
+    ```js
+    methods: {
+      selectAndLocate() {
+        this.$refs.tree.setSelectedOptionValues('deep-node-42')
+        this.$nextTick(() => {
+          this.$refs.tree.locateCurrent()
+        })
+      },
+      onSelect(value, item) {
+        this.selectedId = value
+      }
+    }
+    ```
+  </Step>
+</Steps>
+
+## Set the active (highlighted) value
+
+`setActiveValue(value)` marks a node as active — visually highlighted — without changing the selection state. Active state is always a single node, in both single and multi-select mode. Use it to highlight a "focused" node in response to keyboard navigation or external events.
+
+```js
+this.$refs.tree.setActiveValue('dept-99')
+```
+
+## React to expand and collapse events
+
+Listen to `expand` and `collapse` to track which branches the user opens or closes. Both events receive the raw node data as their only argument.
+
+```html
+<xca-tree
+  :options="treeData"
+  @expand="onExpand"
+  @collapse="onCollapse"
+/>
+```
+
+```js
+methods: {
+  onExpand(item) {
+    // item is the raw OptionItem that was just expanded
+    console.log('Expanded:', item)
+  },
+  onCollapse(item) {
+    console.log('Collapsed:', item)
+  }
+}
+```
+
+## Allow empty-children nodes to expand
+
+By default, a node whose `children` array is empty renders as a leaf (no expand arrow). Set `isChildrenEmptyOptionExpandable` when you want those nodes to be expandable — for example, folder-type nodes that simply happen to have no contents yet.
+
+<ParamField body="isChildrenEmptyOptionExpandable" type="boolean | function" default="false">
+  - **`false`** — nodes with an empty `children` array are treated as leaves.
+  - **`true`** — all nodes with an empty `children` array show an expand arrow. Expanding them displays the `placeholder` text.
+  - **Function** `(node: OptionItem) => boolean` — evaluate each node individually. Returning `true` makes that node expandable; errors are caught and treated as `false`.
+</ParamField>
+
+<CodeGroup>
+```html All empty nodes expandable
+<xca-tree
+  :options="treeData"
+  :is-children-empty-option-expandable="true"
+/>
+```
+
+```html Only folder-type nodes
+<xca-tree
+  :options="treeData"
+  :is-children-empty-option-expandable="node => node.type === 'folder'"
+/>
+```
+</CodeGroup>
+
+<Note>
+  This prop only affects nodes whose `children` field is an **empty array** (`[]`). Nodes with `children: null` or `children: undefined` are unaffected, and lazy-loaded nodes follow their own async expansion logic.
+</Note>
+
+## Method and prop reference
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `defaultExpandAll` | prop `boolean` | Expand all nodes on first render. Default `false`. |
+| `isChildrenEmptyOptionExpandable` | prop `boolean \| function` | Allow empty-children nodes to show an expand arrow. Default `false`. |
+| `expandAll()` | method | Open every node that has children already in memory. |
+| `collapseAll()` | method | Close all open nodes. |
+| `expandNode(value)` | method | Open a specific node by value, expand its ancestors, and scroll to it. |
+| `locateCurrent()` | method | Expand ancestors of the first selected node and scroll to it. |
+| `setActiveValue(value)` | method | Highlight a node without affecting selection state. |
+| `expand` | event `(item: OptionItem)` | Fires when a node is expanded. |
+| `collapse` | event `(item: OptionItem)` | Fires when a node is collapsed. |

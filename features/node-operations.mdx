@@ -1,0 +1,249 @@
+---
+title: "Add, Update, and Remove Tree Nodes in XcaTree"
+sidebarTitle: "Node Operations"
+description: "Build node CRUD menus with optionLinks and drive changes programmatically using addOption, updateOption, and removeOption methods."
+---
+
+XcaTree gives you two complementary tools for modifying the tree at runtime: the `optionLinks` prop adds per-node action buttons that appear on hover, and the `addOption`, `updateOption`, and `removeOption` methods let you drive changes programmatically from anywhere in your application. Both approaches keep the tree's selection state, expand state, and scroll position intact.
+
+## Add per-node action buttons with `optionLinks`
+
+Pass an array of `OptionLink` objects to the `optionLinks` prop. XcaTree renders the configured buttons when the user hovers over a node. Each button's `onclick` callback receives the hovered node's raw data and has `this` bound to the XcaTree component instance, so you can call component methods directly inside the handler.
+
+<ParamField body="optionLinks" type="OptionLink[]" default="[]">
+  Array of operation items to display on each node on hover. Each entry configures one button.
+</ParamField>
+
+### `OptionLink` fields
+
+<ParamField body="text" type="string" required>
+  Label for the operation button.
+</ParamField>
+
+<ParamField body="onclick" type="(item: OptionItem) => void" required>
+  Called when the button is clicked. `item` is the raw data of the hovered node. `this` inside the function points to the XcaTree instance.
+</ParamField>
+
+<ParamField body="confirmText" type="string | ((item: OptionItem) => string)">
+  When provided, XcaTree shows a confirmation prompt before calling `onclick`.
+  - **String** — the same text is used for every node.
+  - **Function** — called with the node's raw data so you can tailor the message per node. If the function throws, the confirmation is skipped and `onclick` still fires.
+  - Falsy or omitted — no confirmation, `onclick` fires immediately.
+</ParamField>
+
+<ParamField body="isVisible" type="(item: OptionItem) => boolean">
+  Controls whether the button is shown for a given node. Called with the node's raw data. Omit to show the button on all nodes.
+</ParamField>
+
+<ParamField body="icon" type="string">
+  Icon for the button — either an SVG string or an image URL. Falls back to a default icon when omitted.
+</ParamField>
+
+### Example: add, rename, and delete buttons
+
+```html
+<template>
+  <xca-tree
+    ref="tree"
+    :options="treeData"
+    :option-links="nodeLinks"
+    @optionchange="onOptionChange"
+  />
+</template>
+```
+
+```js
+export default {
+  data() {
+    return {
+      treeData: [
+        { value: 'root', text: 'Organisation', children: [] }
+      ]
+    }
+  },
+
+  computed: {
+    nodeLinks() {
+      return [
+        {
+          text: 'Add child',
+          onclick(item) {
+            // 'this' is the XcaTree instance
+            this.addOption(item, {
+              value: `node-${Date.now()}`,
+              text: 'New node'
+            }, 'child')
+          }
+        },
+        {
+          text: 'Rename',
+          onclick(item) {
+            const newName = window.prompt('Enter new name:', item.text)
+            if (newName && newName !== item.text) {
+              this.updateOption(item, { text: newName })
+            }
+          }
+        },
+        {
+          text: 'Delete',
+          confirmText: (item) => `Delete "${item.text}"? This cannot be undone.`,
+          // Hide the delete button on root-level nodes
+          isVisible: (item) => item.parentId != null,
+          onclick(item) {
+            this.removeOption(item)
+          }
+        }
+      ]
+    }
+  },
+
+  methods: {
+    onOptionChange(item, data) {
+      console.log(data.action, item)
+    }
+  }
+}
+```
+
+## Programmatic node operations
+
+Call these methods on the component instance via `this.$refs.tree` (or your ref name) to add, update, or remove nodes from outside a hover callback.
+
+### `addOption` — insert a new node
+
+```ts
+addOption(targetOption: OptionItem | null, newOption: OptionItem, position: 'child' | 'sibling'): void
+```
+
+<ParamField body="targetOption" type="OptionItem | null" required>
+  The node to add relative to. Pass `null` with `position: 'sibling'` to append a root-level node.
+</ParamField>
+
+<ParamField body="newOption" type="OptionItem" required>
+  The raw data for the new node. Include at least `value` and `text`.
+</ParamField>
+
+<ParamField body="position" type="'child' | 'sibling'" required>
+  - `'child'` — appends the new node to the end of `targetOption`'s children list.
+  - `'sibling'` — inserts the new node immediately after `targetOption` in the same parent list.
+</ParamField>
+
+```js
+const tree = this.$refs.tree
+
+// Append a root node
+tree.addOption(null, { value: 'root-2', text: 'Second root' }, 'sibling')
+
+// Append a child to a known parent
+tree.addOption(parentNode, { value: 'child-1', text: 'First child' }, 'child')
+
+// Insert a sibling after a specific node
+tree.addOption(siblingNode, { value: 'sibling-2', text: 'Next sibling' }, 'sibling')
+```
+
+### `updateOption` — modify an existing node in place
+
+```ts
+updateOption(option: OptionItem, updates: Record<string, any>): void
+```
+
+<ParamField body="option" type="OptionItem" required>
+  A reference to the node you want to update — use the object returned from a component event or `getOptions()`.
+</ParamField>
+
+<ParamField body="updates" type="Record<string, any>" required>
+  Key-value pairs of fields to update. Only the listed fields are changed; all other fields remain untouched.
+</ParamField>
+
+```js
+// Rename a node
+this.$refs.tree.updateOption(node, { text: 'Renamed department' })
+
+// Disable a node and update its icon at the same time
+this.$refs.tree.updateOption(node, {
+  disabled: true,
+  icon: archivedIconSvg
+})
+```
+
+<Note>
+  `updateOption` locates the node by its value (via `optionValueKey`). If you update the `value` field itself, XcaTree automatically refreshes the selection set. If you update `text` while the node is selected, a `change` event is emitted so downstream consumers stay in sync.
+</Note>
+
+### `removeOption` — delete a node
+
+```ts
+removeOption(option: OptionItem): void
+```
+
+<ParamField body="option" type="OptionItem" required>
+  A reference to the node to remove.
+</ParamField>
+
+```js
+this.$refs.tree.removeOption(nodeToDelete)
+```
+
+<Warning>
+  If the removed node is currently selected, XcaTree removes it from the selection and emits a `change` event. Ensure any parent component listening to `change` handles the case where the previously selected item no longer exists.
+</Warning>
+
+## React to changes with `optionchange`
+
+Every call to `addOption`, `updateOption`, or `removeOption` emits an `optionchange` event. Use it to mirror tree mutations to a server or an external store.
+
+<ParamField body="item" type="OptionItem">
+  The node that was affected.
+</ParamField>
+
+<ParamField body="data" type="OptionChangeData">
+  Describes what happened. The `action` field narrows the type:
+  - `{ action: 'update', ...changedFields }` — a node was updated.
+  - `{ action: 'add', added: OptionItem, position: 'child' | 'sibling' }` — a node was added.
+  - `{ action: 'add-root', added: OptionItem }` — a root node was added.
+  - `{ action: 'remove' }` — a node was removed.
+</ParamField>
+
+```html
+<xca-tree
+  :options="treeData"
+  :option-links="nodeLinks"
+  @optionchange="syncToServer"
+/>
+```
+
+```js
+methods: {
+  async syncToServer(item, data) {
+    switch (data.action) {
+      case 'add':
+      case 'add-root':
+        await api.createNode(data.added)
+        break
+      case 'update':
+        await api.updateNode(item)
+        break
+      case 'remove':
+        await api.deleteNode(item.value)
+        break
+    }
+  }
+}
+```
+
+## Steps to build a node CRUD UI
+
+<Steps>
+  <Step title="Define your optionLinks">
+    Create an array of `OptionLink` objects for the actions you need — typically Add child, Rename, and Delete. Use `isVisible` to suppress actions that don't apply to certain nodes (e.g. hide Delete on root nodes).
+  </Step>
+  <Step title="Bind the prop">
+    Pass the array to `:option-links` on `<xca-tree>`. Add `ref="tree"` so you can call the mutation methods from `onclick` handlers via `this` (which is bound to the XcaTree instance inside `onclick`).
+  </Step>
+  <Step title="Handle confirmations">
+    Add `confirmText` to any destructive action like Delete to give users a chance to cancel before the change is applied.
+  </Step>
+  <Step title="Persist changes">
+    Listen to `@optionchange` and call your backend API inside the handler. The event fires after every `addOption`, `updateOption`, and `removeOption` call, so you have a single place to handle all mutations.
+  </Step>
+</Steps>

@@ -1,0 +1,82 @@
+---
+title: "XcaTree: Professional Vue 2.x Tree Component"
+sidebarTitle: "Home"
+description: "XcaTree is a Vue 2.x tree component with polished animations, drag-and-drop sorting, async loading, and a declarative API. Zero external runtime dependencies."
+---
+
+XcaTree is a drop-in Vue 2.x tree component built for enterprise dashboards and admin UIs. It ships with smooth expand/collapse animations, built-in drag-and-drop sorting, async lazy loading, full-text filtering, dark mode support, and a complete CRUD API — all with zero external runtime dependencies beyond Vue 2.x itself.
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Get a working tree on screen in under 5 minutes using a script tag or npm.
+  </Card>
+  <Card title="Installation" icon="download" href="/installation">
+    Install via npm for Webpack/Vite projects or use the UMD bundle directly.
+  </Card>
+  <Card title="Core Features" icon="sparkles" href="/features/selection">
+    Explore selection modes, drag-and-drop, async loading, filtering, and more.
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/props">
+    Full reference for all props, events, methods, and TypeScript types.
+  </Card>
+</CardGroup>
+
+## Why XcaTree?
+
+XcaTree replaces the boilerplate you'd otherwise write on top of `<el-tree>`. Drag-and-drop, node CRUD, toolbar search, and dark mode all work out of the box — configured with a handful of props, not hundreds of lines of custom code.
+
+<CardGroup cols={3}>
+  <Card title="Zero Dependencies" icon="box-open">
+    Drag-and-drop is built on the HTML5 Drag and Drop API. The only runtime dependency is Vue 2.x.
+  </Card>
+  <Card title="Declarative API" icon="sliders">
+    Props like `draggable`, `multiple`, and `show-toolbar` switch entire feature sets on with a single attribute.
+  </Card>
+  <Card title="TypeScript Ready" icon="braces">
+    Complete `.d.ts` definitions cover every prop, event, method, and data type.
+  </Card>
+  <Card title="Dark Mode" icon="moon">
+    Full dark-mode support via CSS Variables and a single `data-xca-theme="dark"` attribute on `<html>`.
+  </Card>
+  <Card title="Flexible Data" icon="database">
+    Map any backend field names with `optionValueKey`, `optionTextKey`, and `optionChildrenKey` — no data transformation needed.
+  </Card>
+  <Card title="CRUD API" icon="pencil">
+    `addOption`, `updateOption`, and `removeOption` methods let you modify the tree programmatically without replacing the entire dataset.
+  </Card>
+</CardGroup>
+
+## Get started in three steps
+
+<Steps>
+  <Step title="Install XcaTree">
+    Add the package via npm, or include the UMD bundle with a `<script>` tag.
+    ```bash
+    npm install xca-tree --save
+    ```
+  </Step>
+  <Step title="Register and mount the component">
+    ```javascript
+    import XcaTree from 'xca-tree'
+    import 'xca-tree/dist/xca-tree.css'
+
+    Vue.component('xca-tree', XcaTree)
+    ```
+  </Step>
+  <Step title="Render your first tree">
+    ```html
+    <xca-tree
+      :options="treeData"
+      option-value-key="id"
+      option-text-key="name"
+      :multiple="true"
+      :draggable="true"
+      @change="onSelect"
+    />
+    ```
+  </Step>
+</Steps>
+
+<Tip>
+  No build tools? Drop in the UMD bundle with a single `<script>` tag. See the [Quick Start](/quickstart) guide.
+</Tip>

@@ -1,0 +1,234 @@
+---
+title: "Get Started with XcaTree in 5 Minutes"
+sidebarTitle: "Quick Start"
+description: "Render your first XcaTree in under 5 minutes using a script tag — no npm, no build tools, no configuration required."
+---
+
+The fastest way to try XcaTree is with a plain HTML file and two `<script>` tags. You don't need Node.js, npm, Webpack, or Vite — just a browser and a text editor. Follow the steps below to go from a blank file to a fully interactive tree with selection and event handling.
+
+<Steps>
+  <Step title="Include Vue 2.x via CDN">
+    Add Vue 2.x to the `<head>` of your HTML file. XcaTree requires Vue 2.x as a peer dependency, so load it before the XcaTree script.
+
+    ```html
+    <!-- Place this inside <head> -->
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.min.js"></script>
+    ```
+
+    <Tip>
+      Vue 2.6.x and 2.7.x are both supported. Use 2.7.x if you want the Composition API available alongside XcaTree.
+    </Tip>
+  </Step>
+
+  <Step title="Include xca-tree.umd.js and xca-tree.css">
+    Load the XcaTree UMD bundle and its companion stylesheet. The JS file exposes the component on `window.XcaTree`; the CSS file must be included separately.
+
+    ```html
+    <!-- Place after the Vue script tag -->
+    <script src="xca-tree.umd.js"></script>
+    <link rel="stylesheet" href="xca-tree.css" />
+    ```
+
+    <Note>
+      Adjust the paths to match where you have placed the distribution files. If you installed via npm you can find both files in `node_modules/xca-tree/dist/`.
+    </Note>
+  </Step>
+
+  <Step title="Register the component globally">
+    Before creating your Vue instance, register XcaTree as a global component. The UMD build attaches itself to `window.XcaTree` automatically.
+
+    ```javascript
+    Vue.component('xca-tree', window.XcaTree)
+    ```
+  </Step>
+
+  <Step title="Render a minimal tree with sample data">
+    Add a mount point to your `<body>`, then create a Vue instance with tree data. Use `option-value-key` and `option-text-key` to tell XcaTree which fields in your data objects map to the node value and display label.
+
+    ```html
+    <div id="app">
+      <xca-tree
+        :options="treeData"
+        option-value-key="id"
+        option-text-key="name"
+        option-children-key="children">
+      </xca-tree>
+    </div>
+
+    <script>
+    new Vue({
+      el: '#app',
+      data: {
+        treeData: [
+          {
+            id: 1,
+            name: 'Engineering',
+            children: [
+              { id: 2, name: 'Frontend', children: [] },
+              { id: 3, name: 'Backend',  children: [] }
+            ]
+          },
+          {
+            id: 4,
+            name: 'Design',
+            children: [
+              { id: 5, name: 'UX Research', children: [] }
+            ]
+          }
+        ]
+      }
+    })
+    </script>
+    ```
+  </Step>
+
+  <Step title="Handle the change event">
+    Listen to the `change` event to react when the user selects a node. The event delivers two arguments: the selected `value` (the `id` in this example) and the original data object from your `treeData` array.
+
+    ```html
+    <div id="app">
+      <xca-tree
+        :options="treeData"
+        option-value-key="id"
+        option-text-key="name"
+        option-children-key="children"
+        @change="onSelect">
+      </xca-tree>
+      <p v-if="selected">Selected: {{ selected.name }} (id: {{ selected.id }})</p>
+    </div>
+
+    <script>
+    new Vue({
+      el: '#app',
+      data: {
+        selected: null,
+        treeData: [
+          {
+            id: 1,
+            name: 'Engineering',
+            children: [
+              { id: 2, name: 'Frontend', children: [] },
+              { id: 3, name: 'Backend',  children: [] }
+            ]
+          },
+          {
+            id: 4,
+            name: 'Design',
+            children: [
+              { id: 5, name: 'UX Research', children: [] }
+            ]
+          }
+        ]
+      },
+      methods: {
+        onSelect(value, item) {
+          // value  → the node's id (e.g. 2)
+          // item   → your original data object (e.g. { id: 2, name: 'Frontend', children: [] })
+          this.selected = item
+        }
+      }
+    })
+    </script>
+    ```
+
+    <Tip>
+      `item` is a direct reference to the object inside your `treeData` array — not a copy. You can safely read and write its properties, and Vue's reactivity system will reflect any changes in the tree automatically.
+    </Tip>
+  </Step>
+</Steps>
+
+## Complete copy-pasteable example
+
+Save the following as `index.html` and open it in any modern browser. No server required.
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>XcaTree Quick Start</title>
+
+  <!-- 1. XcaTree styles -->
+  <link rel="stylesheet" href="xca-tree.css" />
+
+  <style>
+    body { font-family: sans-serif; padding: 24px; }
+    #app { max-width: 360px; }
+    .selection-info { margin-top: 16px; font-size: 14px; color: #555; }
+  </style>
+</head>
+<body>
+
+  <div id="app">
+    <xca-tree
+      :options="treeData"
+      option-value-key="id"
+      option-text-key="name"
+      option-children-key="children"
+      @change="onSelect">
+    </xca-tree>
+
+    <p class="selection-info" v-if="selected">
+      ✅ Selected: <strong>{{ selected.name }}</strong> (id: {{ selected.id }})
+    </p>
+    <p class="selection-info" v-else>
+      Click any node to select it.
+    </p>
+  </div>
+
+  <!-- 2. Vue 2.x -->
+  <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.min.js"></script>
+
+  <!-- 3. XcaTree UMD bundle -->
+  <script src="xca-tree.umd.js"></script>
+
+  <script>
+    // 4. Register globally
+    Vue.component('xca-tree', window.XcaTree)
+
+    // 5. Create the Vue instance
+    new Vue({
+      el: '#app',
+      data: {
+        selected: null,
+        treeData: [
+          {
+            id: 1,
+            name: 'Engineering',
+            children: [
+              { id: 2, name: 'Frontend',    children: [] },
+              { id: 3, name: 'Backend',     children: [] },
+              { id: 6, name: 'DevOps',      children: [] }
+            ]
+          },
+          {
+            id: 4,
+            name: 'Design',
+            children: [
+              { id: 5, name: 'UX Research', children: [] },
+              { id: 7, name: 'Visual',      children: [] }
+            ]
+          },
+          {
+            id: 8,
+            name: 'Product',
+            children: []
+          }
+        ]
+      },
+      methods: {
+        onSelect(value, item) {
+          this.selected = item
+        }
+      }
+    })
+  </script>
+
+</body>
+</html>
+```
+
+<Warning>
+  Make sure `xca-tree.umd.js` and `xca-tree.css` are in the same directory as `index.html`, or update the `src` and `href` paths accordingly.
+</Warning>

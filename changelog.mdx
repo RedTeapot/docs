@@ -1,0 +1,46 @@
+---
+title: "XcaTree Release Notes and Changelog"
+sidebarTitle: "Changelog"
+description: "Release history for XcaTree. Covers new features, improvements, and bug fixes across each version update."
+---
+
+XcaTree follows a continuous release cadence. Each entry below describes what changed, what was improved, and what was fixed. Read through before upgrading to catch any API renames or behavioral changes that may affect your integration.
+
+<Update label="2026-06-09" description="This week's update">
+
+### New features
+
+**Brand-new drag-and-drop engine** — The `vuedraggable`/SortableJS dependency has been removed. Drag-and-drop is now implemented entirely in-house using the HTML5 Drag and Drop API. The result is a smaller bundle, more predictable behavior, and a more polished ghost element that tracks the cursor smoothly. See [Drag & Sort](/features/drag-drop) for full documentation.
+
+**Indent-aware drop targeting** — While dragging, move the cursor left or right to control which level the node lands at. The drop placeholder snaps to the intended depth in real time, so the final position is exactly what you see — no secondary adjustment needed.
+
+**Auto-expand parent path on drag-into** — When you drag a node into a collapsed parent, XcaTree automatically expands the path level by level with a smooth transition, so you can immediately confirm where the node landed.
+
+**Full dark mode support** — The tree component, filter highlights, connector lines, example cards, and the example home page all support the system dark theme. The component automatically follows `prefers-color-scheme` changes. See [Theming](/customization/theming) for details.
+
+**"Custom structure" toggle on examples** — On any example page you can now instantly switch between the standard `value`/`text`/`children` field structure and a custom field structure to verify `optionValueKey`/`optionTextKey`/`optionChildrenKey` compatibility without leaving the docs.
+
+**Full-screen and side-by-side layout on the debugger** — The online debugger and example cards now support full-screen mode with a left/right split layout. The log panel automatically moves to the right column, giving you more vertical space for the tree.
+
+### Improvements
+
+**Drag commits on mouse-up** — During a drag operation only the visual placeholder updates in real time; the underlying data is committed in one atomic operation when you release the mouse. This eliminates data jitter that could be observed in previous builds during fast drag movements.
+
+**Standardized field names across all examples** — All built-in examples now use `value`/`text`/`children` by default. Switch to a custom structure via the example toolbar button. This makes the examples more consistent and easier to follow.
+
+**Method and event renames** — The node add/update/remove methods and the `nodechange` event have been renamed for consistency. Update your code to use the new names; see [Methods](/api/methods) and [Events](/api/events) for the current API. This release also fixes a bug where adding a node had no effect when a custom field structure was active.
+
+**`treeProps` reactive watching + `reset` event** — Dynamically changing component props is now fully reactive. A new `reset` event lets you restore the component to its initial snapshot programmatically.
+
+### Bug fixes
+
+- Fixed: dragging the last node in a list or the only child of a parent left a phantom placeholder behind after the drop.
+- Fixed: the placeholder flickered between parent and child lists when dragging across levels quickly.
+- Fixed: hovering over a collapsed node during a drag did not trigger auto-expand.
+- Fixed: the drag ghost element had incorrect icon sizing and lost some styles in certain configurations. The ghost now visually matches the source node exactly.
+- Fixed: moving the mouse outside the component boundary during a drag caused the placeholder to disappear and horizontal offset to stop responding.
+- Fixed: using a custom `optionChildrenKey` caused child nodes to not update after a drop.
+- Fixed: in dark mode, selected node text was too dark to read; filter highlight, search input, and clear-button colors were inconsistent.
+- Multiple precision fixes for drop-index calculation, indent-level math, and placeholder positioning across edge cases.
+
+</Update>

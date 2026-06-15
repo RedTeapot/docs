@@ -1,0 +1,300 @@
+---
+title: "XcaTree Instance Methods Reference"
+sidebarTitle: "Methods"
+description: "Reference for all public XcaTree instance methods. Call them via a Vue template ref to control selection, filter nodes, navigate, and mutate tree data."
+---
+
+XcaTree exposes a set of public instance methods that give you programmatic control over selection, data, filtering, and navigation. You access them through a Vue template ref — assign `ref="tree"` in your template and then call `this.$refs.tree.methodName()` in your component logic.
+
+```vue
+<!-- Register the ref -->
+<xca-tree ref="tree" :options="nodes" />
+```
+
+```js
+// Call methods on the instance
+this.$refs.tree.expandAll();
+```
+
+---
+
+## Selection
+
+### `setSelectedOptionValues(newValues)`
+
+Sets the selected nodes programmatically. This fires the `change` event and automatically expands every ancestor node along the path to each selected item.
+
+<ParamField body="newValues" type="string | number | (string | number)[]" required>
+  The value(s) to select. You can pass a single value or an array. `null` and `undefined` entries are filtered out automatically.
+</ParamField>
+
+<ResponseField name="returns" type="void" />
+
+```js
+// Select a single node
+this.$refs.tree.setSelectedOptionValues('dept-42');
+
+// Select multiple nodes (multi-select mode)
+this.$refs.tree.setSelectedOptionValues(['dept-42', 'dept-99']);
+```
+
+---
+
+### `getSelectedValues()`
+
+Returns the values of all currently selected nodes.
+
+<ResponseField name="returns" type="(string | number)[]">
+  An array of the selected node `value`s. Empty when nothing is selected.
+</ResponseField>
+
+```js
+const values = this.$refs.tree.getSelectedValues();
+// ['dept-42', 'dept-99']
+```
+
+---
+
+### `getSelectedOptions()`
+
+Returns the raw data objects for all currently selected nodes.
+
+<ResponseField name="returns" type="OptionItem[]">
+  An array of raw `OptionItem` objects. These are direct references to the internal data — mutating them changes what the tree displays.
+</ResponseField>
+
+```js
+const items = this.$refs.tree.getSelectedOptions();
+// [{ text: 'Engineering', value: 'dept-42', ... }]
+```
+
+---
+
+## Data
+
+### `getOptions()`
+
+Retrieves the full tree data in its original format, including any children that were loaded asynchronously after the initial render.
+
+<ResponseField name="returns" type="Promise<OptionItem[]>">
+  Resolves with a flat-root array of `OptionItem` objects representing the entire tree.
+</ResponseField>
+
+```js
+const allNodes = await this.$refs.tree.getOptions();
+```
+
+---
+
+### `updateOptions(options?)`
+
+Replaces the tree data and re-renders. All nodes are collapsed, but the current selection is preserved. If a node was previously active (highlighted via click), the tree scrolls back to it after the update.
+
+<ParamField body="options" type="OptionItem[] | Promise<OptionItem[]>">
+  The new data to load. When omitted, the component reloads using the data it already has — useful for a manual refresh.
+</ParamField>
+
+<ResponseField name="returns" type="Promise<OptionItem[]>">
+  Resolves when the update is complete with the loaded data.
+</ResponseField>
+
+```js
+// Replace with new data
+await this.$refs.tree.updateOptions(freshData);
+
+// Reload in place (e.g. after a backend write)
+await this.$refs.tree.updateOptions();
+```
+
+---
+
+### `getShowingOptions()`
+
+Returns only the nodes that are currently visible in the tree — respecting the current expanded/collapsed state and any active filter.
+
+<ResponseField name="returns" type="OptionItem[]">
+  An array of raw `OptionItem` objects matching what is visually rendered. **This is a live reference**, not a snapshot — mutating the returned objects immediately affects the display.
+</ResponseField>
+
+```js
+const visible = this.$refs.tree.getShowingOptions();
+console.log(`${visible.length} nodes are currently showing`);
+```
+
+---
+
+## Node Operations
+
+### `updateOption(option, updates)`
+
+Safely patches a single node's data. The component locates the node by its `value` (via `optionValueKey`), applies only the specified fields, and then triggers the necessary reactive updates.
+
+- If `value` changes, the selection set is updated automatically.
+- If `text` changes on a selected node, `change` is re-emitted.
+- Always emits `optionchange` with `{ action: 'update', ...updates }`.
+
+<ParamField body="option" type="OptionItem" required>
+  A reference to the node you want to update. This can be an object you received from a previous event or method call.
+</ParamField>
+
+<ParamField body="updates" type="Record<string, any>" required>
+  An object whose keys map to the fields you want to change. Only the listed fields are modified; everything else is left untouched.
+</ParamField>
+
+<ResponseField name="returns" type="void" />
+
+```js
+// Rename a node
+this.$refs.tree.updateOption(node, { text: 'New Department Name' });
+
+// Mark a node as disabled
+this.$refs.tree.updateOption(node, { disabled: true });
+```
+
+---
+
+### `addOption(targetOption, newOption, position)`
+
+Inserts a new node into the tree relative to an existing node.
+
+- `'child'` — appends `newOption` as the **last child** of `targetOption`.
+- `'sibling'` — inserts `newOption` immediately **after** `targetOption` at the same level.
+- When `targetOption` is `null` and `position` is `'sibling'`, `newOption` is added as a **new root node**.
+
+Emits `optionchange` with `action: 'add'` (or `'add-root'` for root insertions). Does not emit `change`.
+
+<ParamField body="targetOption" type="OptionItem | null" required>
+  The reference node. Pass `null` together with `position: 'sibling'` to add a root-level node.
+</ParamField>
+
+<ParamField body="newOption" type="OptionItem" required>
+  The data for the new node.
+</ParamField>
+
+<ParamField body="position" type="'child' | 'sibling'" required>
+  Where to place the new node relative to `targetOption`.
+</ParamField>
+
+<ResponseField name="returns" type="void" />
+
+```js
+// Add a child
+this.$refs.tree.addOption(parentNode, { text: 'New Team', value: 'team-new' }, 'child');
+
+// Add a sibling after an existing node
+this.$refs.tree.addOption(siblingNode, { text: 'New Dept', value: 'dept-new' }, 'sibling');
+
+// Add a root-level node
+this.$refs.tree.addOption(null, { text: 'Root Node', value: 'root-new' }, 'sibling');
+```
+
+---
+
+### `removeOption(option)`
+
+Removes a node (and all its descendants) from the tree. If the removed node was selected, it is deselected and `change` is emitted. Always emits `optionchange` with `{ action: 'remove' }`.
+
+<ParamField body="option" type="OptionItem" required>
+  A reference to the node to remove.
+</ParamField>
+
+<ResponseField name="returns" type="void" />
+
+```js
+this.$refs.tree.removeOption(node);
+```
+
+---
+
+## Filtering
+
+### `filterOptions(matcher)`
+
+Filters the tree to show only nodes matching the given function. Matching nodes are highlighted; their ancestors are automatically expanded. Filtering is debounced by 300 ms to avoid expensive re-renders on every keystroke. Passing `null` clears the filter immediately (no debounce) and restores the expand state that existed before filtering started.
+
+<ParamField body="matcher" type="OptionMatcher | null" required>
+  A function `(option: OptionItem) => boolean` — return `true` to keep a node visible. Pass `null` to clear the filter.
+</ParamField>
+
+<ResponseField name="returns" type="void" />
+
+```js
+// Filter to nodes whose text contains a search term
+const query = 'engineering';
+this.$refs.tree.filterOptions(node => node.text.toLowerCase().includes(query));
+
+// Clear the filter
+this.$refs.tree.filterOptions(null);
+```
+
+---
+
+## Navigation
+
+### `locateCurrent()`
+
+Expands the ancestor path to the first currently selected node and scrolls the tree viewport so that node is visible. Call this after programmatically changing the selection or after the tree data has been replaced.
+
+<ResponseField name="returns" type="void" />
+
+```js
+this.$refs.tree.setSelectedOptionValues('dept-42');
+this.$refs.tree.locateCurrent(); // Scroll to dept-42
+```
+
+---
+
+### `expandAll()`
+
+Expands every node that has children. This does **not** trigger async fetching for lazy-load nodes — only nodes with data already present in the tree are expanded.
+
+<ResponseField name="returns" type="void" />
+
+```js
+this.$refs.tree.expandAll();
+```
+
+---
+
+### `expandNode(value)`
+
+Expands a specific node by its `value`, automatically expanding all ancestor nodes first and scrolling the node into view. If the target node has no children, an empty expandable region is created (useful in combination with `isChildrenEmptyOptionExpandable`).
+
+<ParamField body="value" type="string | number" required>
+  The `value` of the node to expand.
+</ParamField>
+
+<ResponseField name="returns" type="void" />
+
+```js
+this.$refs.tree.expandNode('dept-42');
+```
+
+---
+
+### `collapseAll()`
+
+Collapses every expanded node in the tree.
+
+<ResponseField name="returns" type="void" />
+
+```js
+this.$refs.tree.collapseAll();
+```
+
+---
+
+### `setActiveValue(value)`
+
+Sets the "active" highlight on a node without changing the selection. The active state is a single-node highlight — independent of multi-selection — typically used to indicate the currently previewed or focused item in a master-detail layout.
+
+<ParamField body="value" type="string | number" required>
+  The `value` of the node to mark as active.
+</ParamField>
+
+<ResponseField name="returns" type="void" />
+
+```js
+// Highlight a node on hover without selecting it
+this.$refs.tree.setActiveValue(hoveredItem.value);
+```

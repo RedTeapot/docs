@@ -1,0 +1,187 @@
+---
+title: "Single and Multi-Select in XcaTree"
+sidebarTitle: "Selection"
+description: "Configure single or multi-select mode in XcaTree with the multiple prop, handle change events, and control selection programmatically via methods."
+---
+
+XcaTree supports two selection modes: single-select (the default) and multi-select. Both modes fire the same `change` event, but the shape of the payload differs. You can drive selection entirely from the outside with `selectedValues` or `value`, or let the user interact with the tree and react to `change` events — or mix both approaches.
+
+## Single-select mode
+
+Single-select is the default. When a user clicks a node the tree highlights it and emits `change` with the node's value and its raw data object. Clicking the same node a second time deselects it and emits `change` with `null`.
+
+```html
+<template>
+  <xca-tree :options="treeData" @change="onSelect" />
+</template>
+
+<script>
+export default {
+  methods: {
+    onSelect(value, item) {
+      // value  → string | number | null
+      // item   → OptionItem | null
+      console.log('Selected value:', value)
+      console.log('Selected node data:', item)
+    }
+  }
+}
+</script>
+```
+
+## Multi-select mode
+
+Set `:multiple="true"` to switch to multi-select. Each node gains a checkbox, and `change` now delivers an array of values and a matching array of raw data objects.
+
+```html
+<template>
+  <xca-tree :options="treeData" :multiple="true" @change="onMultiSelect" />
+</template>
+
+<script>
+export default {
+  methods: {
+    onMultiSelect(values, items) {
+      // values → (string | number)[]
+      // items  → OptionItem[]
+      console.log('Selected', values.length, 'nodes')
+    }
+  }
+}
+</script>
+```
+
+## Controlled selection
+
+Use `selectedValues` to declare an initial selection or to keep the tree in sync with external state. It accepts an array of `value`s regardless of whether the tree is in single or multi-select mode.
+
+<CodeGroup>
+```html Single-select (controlled)
+<xca-tree
+  :options="treeData"
+  :selected-values="[currentId]"
+  @change="onSelect"
+/>
+```
+
+```html Multi-select (controlled)
+<xca-tree
+  :options="treeData"
+  :multiple="true"
+  :selected-values="selectedIds"
+  @change="onMultiSelect"
+/>
+```
+</CodeGroup>
+
+Alternatively, use the `value` prop. In single-select mode pass a single `string | number`; in multi-select mode pass an array:
+
+```html
+<!-- single-select shorthand -->
+<xca-tree :options="treeData" :value="currentId" @change="onSelect" />
+
+<!-- multi-select shorthand -->
+<xca-tree :options="treeData" :multiple="true" :value="selectedIds" @change="onMultiSelect" />
+```
+
+<Note>
+  Use either `selectedValues` or `value` — not both at the same time.
+</Note>
+
+## The `change` event
+
+<Tabs>
+  <Tab title="Single-select payload">
+    | Argument | Type | Description |
+    | --- | --- | --- |
+    | `value` | `string \| number \| null` | The value of the selected node, or `null` when the selection is cleared |
+    | `item` | `OptionItem \| null` | The raw node data object, or `null` when cleared |
+
+    ```js
+    onSelect(value, item) {
+      this.currentId = value
+    }
+    ```
+  </Tab>
+  <Tab title="Multi-select payload">
+    | Argument | Type | Description |
+    | --- | --- | --- |
+    | `values` | `(string \| number)[]` | Array of all currently selected values |
+    | `items` | `OptionItem[]` | Array of all currently selected raw node data objects |
+
+    ```js
+    onMultiSelect(values, items) {
+      this.selectedIds = values
+    }
+    ```
+  </Tab>
+</Tabs>
+
+<Warning>
+  The `item` / `items` argument is a direct reference to internal node data (`_original`). Mutating it inside the `change` handler and then re-assigning it to `options` can cause an infinite update loop. Use `updateOption`, `addOption`, or `removeOption` to modify tree data safely, or target individual properties with `$set`.
+</Warning>
+
+## Programmatic selection
+
+Use the component's public methods to read or update the selection without user interaction.
+
+<Steps>
+  <Step title="Get a ref to the tree">
+    ```html
+    <xca-tree ref="tree" :options="treeData" :multiple="true" />
+    ```
+  </Step>
+
+  <Step title="Set selected values">
+    Call `setSelectedOptionValues` with a single value or an array. The method triggers `change` and automatically expands the parent path to the selected nodes.
+
+    ```js
+    // Select one node
+    this.$refs.tree.setSelectedOptionValues('dept-42')
+
+    // Select several nodes at once (multi-select)
+    this.$refs.tree.setSelectedOptionValues(['dept-42', 'dept-99'])
+    ```
+  </Step>
+
+  <Step title="Read the current selection">
+    ```js
+    // Values only
+    const values = this.$refs.tree.getSelectedValues()
+    // → (string | number)[]
+
+    // Full raw data objects
+    const nodes = this.$refs.tree.getSelectedOptions()
+    // → OptionItem[]
+    ```
+  </Step>
+</Steps>
+
+## Disabled nodes
+
+Mark nodes as disabled via `optionDisabledKey` (see [Field Mapping](/features/field-mapping)). By default a disabled node cannot be selected — clicking it does nothing.
+
+<ParamField body="disabledOptionSelectable" type="boolean" default="false">
+  Set to `true` to allow users to manually select disabled nodes. Disabled styling and tooltip still appear; only the click-block is lifted.
+</ParamField>
+
+<ParamField body="optionDisabledText" type="string | function">
+  Controls the tooltip shown on hover over a disabled node.
+
+  - **String** — all disabled nodes share the same message.
+  - **Function** `(option: OptionItem) => string` — generate a per-node message based on the raw data. Falls back to `"已禁选"` if the function throws.
+</ParamField>
+
+```html
+<xca-tree
+  :options="treeData"
+  :multiple="true"
+  option-disabled-key="locked"
+  :option-disabled-text="node => node.lockReason || 'Node is locked'"
+  :disabled-option-selectable="false"
+/>
+```
+
+<Tip>
+  Even when `disabledOptionSelectable` is `false`, you can still select disabled nodes programmatically with `setSelectedOptionValues`. The prop only controls user-initiated clicks.
+</Tip>

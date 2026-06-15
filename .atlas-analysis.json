@@ -1,0 +1,91 @@
+{
+  "projectType": "sdk-library",
+  "projectName": "XcaTree",
+  "projectDescription": "A professional Vue 2.x tree component with polished animations, drag-and-drop sorting, async lazy loading, filtering, dark mode, and a declarative API — zero external runtime dependencies.",
+  "theme": "luma",
+  "primaryColor": "#0D9373",
+  "lightColor": "#07C983",
+  "darkColor": "#0A7A5E",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Guide",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "installation"
+            ]
+          },
+          {
+            "group": "Core Features",
+            "pages": [
+              "features/selection",
+              "features/field-mapping",
+              "features/expand-collapse",
+              "features/filtering",
+              "features/drag-drop",
+              "features/async-loading",
+              "features/node-operations",
+              "features/toolbar"
+            ]
+          },
+          {
+            "group": "Customization",
+            "pages": [
+              "customization/theming",
+              "customization/icons"
+            ]
+          },
+          {
+            "group": "Resources",
+            "pages": [
+              "changelog",
+              "pricing",
+              "support"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "API",
+            "pages": [
+              "api/props",
+              "api/events",
+              "api/methods",
+              "api/types"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Single and multi-select with checkbox support",
+    "Smooth CSS Grid expand/collapse animations",
+    "Built-in drag-and-drop sorting (no external deps)",
+    "Async lazy loading with loading state",
+    "Flexible field mapping (optionValueKey, optionTextKey, optionChildrenKey)",
+    "Custom filter/search with highlight and auto-expand",
+    "Node-level operation menus (CRUD API)",
+    "Toolbar with search, locate, expand-all/collapse-all",
+    "Dark mode via CSS Variables and data-xca-theme",
+    "Full TypeScript .d.ts definitions",
+    "Zero external runtime dependencies (only Vue 2.x)"
+  ],
+  "publicApiSurface": [
+    "<xca-tree> component (Vue 2.x custom element)",
+    "props: options, optionValueKey, optionTextKey, optionChildrenKey, optionIconKey, optionDisabledKey, optionDisabledText, optionChildrenFetcher, isLazy, isChildrenEmptyOptionExpandable, draggable, optionMatcher, expandOnFilter, selectedValues, value, multiple, disabledOptionSelectable, showToolbar, objectName, links, toolbarOptions, optionLinks, defaultExpandAll, indentSize, placeholder, loadingText, folderIcon, folderOpenIcon, fileIcon, loadingIcon",
+    "events: change, sortchange, expand, collapse, nodeclick, optionchange, linkclick",
+    "methods: setSelectedOptionValues(), getSelectedValues(), getSelectedOptions(), getOptions(), updateOptions(), getShowingOptions(), updateOption(), addOption(), removeOption(), filterOptions(), locateCurrent(), expandAll(), expandNode(), collapseAll(), setActiveValue()",
+    "types: OptionItem, OptionValueResolver, OptionTextResolver, OptionChildrenFetcher, OptionMatcher, OptionLink, Link, ToolbarOption, OptionChangeData",
+    "UMD: window.XcaTree (script tag)",
+    "ESM: import XcaTree from 'xca-tree'",
+    "CSS: xca-tree.css (must be imported separately)"
+  ]
+}

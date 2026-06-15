@@ -1,0 +1,173 @@
+---
+title: "Map Any Data Structure to XcaTree Fields"
+sidebarTitle: "Field Mapping"
+description: "Use optionValueKey, optionTextKey, and optionChildrenKey to map any backend field names to XcaTree without transforming your data."
+---
+
+XcaTree internally works with a fixed set of field names — `value`, `text`, `disabled`, `children`, and `icon` — but your backend rarely returns data shaped that way. Rather than writing a data-transformation layer, configure the `optionXxxKey` props to tell XcaTree where to find each piece of information in your raw data. Every mapping prop accepts either a plain string (including dot-path notation for nested fields) or a resolver function for logic that can't be expressed as a path.
+
+## Mapping props at a glance
+
+| Prop | Maps to | Default |
+| --- | --- | --- |
+| `optionValueKey` | Node unique identifier | `'value'` |
+| `optionTextKey` | Node display label | `'text'` |
+| `optionChildrenKey` | Child node list | `'children'` |
+| `optionIconKey` | Node icon (SVG or URL) | `null` |
+| `optionDisabledKey` | Disabled state | `'disabled'` |
+| `optionDisabledText` | Disabled tooltip | `'已禁用'` |
+
+## String mapping
+
+Pass a field name as a plain string to read that field from each node object. This is the simplest form and covers most scenarios.
+
+Suppose your backend returns nodes shaped like this:
+
+```json
+{
+  "code": "ORG-001",
+  "label": "Engineering",
+  "items": [
+    { "code": "ORG-002", "label": "Frontend", "items": [] }
+  ]
+}
+```
+
+Map those fields to XcaTree in one line:
+
+```html
+<xca-tree
+  :options="treeData"
+  option-value-key="code"
+  option-text-key="label"
+  option-children-key="items"
+/>
+```
+
+## Dot-path notation
+
+When the value you need lives inside a nested object, use dot notation — XcaTree resolves the path automatically, no manual `get()` required.
+
+```html
+<xca-tree
+  :options="treeData"
+  option-value-key="student.id"
+  option-text-key="student.fullName"
+/>
+```
+
+The example above reads `node.student.id` as the value and `node.student.fullName` as the label for every node:
+
+```json
+{
+  "student": { "id": 101, "fullName": "Ada Lovelace" },
+  "children": []
+}
+```
+
+## Function mapping
+
+For cases where a simple path isn't enough — composite keys, conditional logic, derived labels — pass a resolver function instead. The function receives the raw node object and returns the resolved value. Inside the function, `this` is the XcaTree component instance.
+
+```html
+<xca-tree
+  :options="treeData"
+  :option-value-key="node => node.id"
+  :option-text-key="node => `${node.name} (${node.code})`"
+  :option-disabled-key="node => node.status === 'archived'"
+/>
+```
+
+<Tip>
+  Use function mapping to build display labels from multiple fields, apply conditional logic, or call helpers that require access to XcaTree's instance methods via `this`.
+</Tip>
+
+## Complete example: `{ code, label, items }` backend
+
+Here is a full working example that maps a backend shape with no `value`, `text`, or `children` fields at all:
+
+<CodeGroup>
+```html Template
+<template>
+  <xca-tree
+    ref="tree"
+    :options="departments"
+    option-value-key="code"
+    option-text-key="label"
+    option-children-key="items"
+    option-disabled-key="inactive"
+    :option-disabled-text="node => `${node.label} is inactive`"
+    :option-icon-key="node => node.isLeaf ? fileIcon : folderIcon"
+    @change="onSelect"
+  />
+</template>
+```
+
+```js Script
+export default {
+  data() {
+    return {
+      departments: [
+        {
+          code: 'ENG',
+          label: 'Engineering',
+          inactive: false,
+          isLeaf: false,
+          items: [
+            { code: 'FE', label: 'Frontend', inactive: false, isLeaf: true, items: [] },
+            { code: 'BE', label: 'Backend',  inactive: true,  isLeaf: true, items: [] }
+          ]
+        }
+      ],
+      fileIcon: '<svg>...</svg>',
+      folderIcon: '<svg>...</svg>'
+    }
+  },
+  methods: {
+    onSelect(value, item) {
+      // value is now the `code` field, e.g. 'FE'
+      console.log(value, item)
+    }
+  }
+}
+```
+</CodeGroup>
+
+## Prop reference
+
+<ParamField body="optionValueKey" type="string | function" default="'value'">
+  Identifies each node uniquely. Accepts a plain field name, a dot-path string such as `"student.id"`, or an `(option: OptionItem) => string | number` resolver.
+</ParamField>
+
+<ParamField body="optionTextKey" type="string | function" default="'text'">
+  Controls the label displayed for each node. Same string / dot-path / function forms as `optionValueKey`.
+</ParamField>
+
+<ParamField body="optionChildrenKey" type="string | function" default="'children'">
+  Points to the field that holds a node's child array. Same forms as `optionValueKey`.
+</ParamField>
+
+<ParamField body="optionIconKey" type="string | function" default="null">
+  Resolves the icon for each node. The returned value must be either an **SVG string** or an **image URL**. When `null` (the default), XcaTree uses its built-in folder/file icons.
+</ParamField>
+
+<ParamField body="optionDisabledKey" type="string | function" default="'disabled'">
+  Determines whether a node is disabled. The resolved value is coerced to boolean. Same forms as `optionValueKey`.
+</ParamField>
+
+<ParamField body="optionDisabledText" type="string | function" default="'已禁用'">
+  The tooltip shown on disabled nodes.
+
+  - **String** — all disabled nodes share the same text.
+  - **Function** `(option: OptionItem) => string` — generate a per-node message. Falls back to `"已禁选"` if the function throws.
+</ParamField>
+
+## Important constraints
+
+<Warning>
+  When `optionChildrenKey` is a **function**, XcaTree cannot write back child nodes via `addOption`. If you need to add nodes programmatically, use a string or dot-path mapping instead.
+</Warning>
+
+<Note>
+  All mapping props use the raw backend object as their input — before any transformation. You can safely reference fields that XcaTree itself never reads, such as `node.status` or `node.meta.createdAt`, inside your resolver functions.
+</Note>

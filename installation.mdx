@@ -1,0 +1,186 @@
+---
+title: "Install XcaTree via npm for Webpack and Vite"
+sidebarTitle: "Installation"
+description: "Install XcaTree via npm for Webpack, Vite, or Rollup projects. Includes ESM and UMD builds plus a standalone CSS file."
+---
+
+For projects that use a module bundler — Webpack, Vite, Rollup, or any similar tool — npm installation gives you tree-shakeable ESM imports, automatic path resolution, and TypeScript types with zero extra configuration. Follow the steps below to get XcaTree running inside your Vue 2.x application.
+
+<Steps>
+  <Step title="Install the package">
+    Run the following command in your project root to add XcaTree as a production dependency.
+
+    ```bash
+    npm install xca-tree --save
+    ```
+
+    <Tip>
+      Yarn and pnpm work equally well: `yarn add xca-tree` or `pnpm add xca-tree`.
+    </Tip>
+  </Step>
+
+  <Step title="Import the component and stylesheet">
+    Import the ESM build and the companion CSS file. The CSS file must be imported explicitly — it is not bundled into the JavaScript.
+
+    <CodeGroup>
+      ```javascript Global registration (main.js)
+      import Vue from 'vue'
+      import XcaTree from 'xca-tree'
+      import 'xca-tree/xca-tree.css'
+
+      // Register once; use <xca-tree> anywhere in your app
+      Vue.component('xca-tree', XcaTree)
+      ```
+
+      ```javascript Local registration (MyComponent.vue)
+      import XcaTree from 'xca-tree'
+      import 'xca-tree/xca-tree.css'
+
+      export default {
+        components: { XcaTree },
+        data() {
+          return {
+            treeData: [
+              {
+                value: '1',
+                text: 'Engineering',
+                children: [
+                  { value: '1-1', text: 'Frontend' },
+                  { value: '1-2', text: 'Backend'  }
+                ]
+              },
+              { value: '2', text: 'Design', children: [] }
+            ]
+          }
+        },
+        methods: {
+          onTreeChange(value, item) {
+            console.log('Selected:', item.text)
+          }
+        }
+      }
+      ```
+    </CodeGroup>
+
+    <Note>
+      **Global vs local registration:** Use global registration when you use XcaTree in many places across your app. Use local registration when you want to keep component scope explicit or minimize the global namespace.
+    </Note>
+  </Step>
+
+  <Step title="Use it in a template">
+    Add `<xca-tree>` to any template. The example below enables multi-select and drag-and-drop, and handles the `change` event.
+
+    ```html
+    <template>
+      <xca-tree
+        :options="treeData"
+        option-value-key="value"
+        option-text-key="text"
+        option-children-key="children"
+        :multiple="true"
+        :draggable="true"
+        :show-toolbar="true"
+        @change="onTreeChange"
+        @sortchange="onSortChange">
+      </xca-tree>
+    </template>
+
+    <script>
+    export default {
+      data() {
+        return {
+          treeData: [
+            {
+              value: '1',
+              text: 'Engineering',
+              children: [
+                { value: '1-1', text: 'Frontend' },
+                { value: '1-2', text: 'Backend'  }
+              ]
+            },
+            { value: '2', text: 'Design', children: [] }
+          ]
+        }
+      },
+      methods: {
+        onTreeChange(value, item) {
+          // value → selected value(s); item → original data object(s)
+          console.log('Selected:', value, item)
+        },
+        onSortChange(draggingItem, dropItem, dropType) {
+          // dropType is 'before' | 'after' | 'inner'
+          console.log(`Moved "${draggingItem.text}" ${dropType} "${dropItem?.text}"`)
+        }
+      }
+    }
+    </script>
+    ```
+  </Step>
+
+  <Step title="TypeScript usage">
+    TypeScript declarations are bundled with the package in `xca-tree.d.ts`. No `@types/` package is needed. Your IDE resolves types automatically when you import from `'xca-tree'`.
+
+    ```typescript
+    import XcaTree, { OptionItem, OptionChildrenFetcher } from 'xca-tree'
+    import 'xca-tree/xca-tree.css'
+    import Vue from 'vue'
+
+    // Type-safe async loader
+    const fetchChildren: OptionChildrenFetcher = async (item: OptionItem) => {
+      const response = await fetch(`/api/nodes/${item.value}/children`)
+      return response.json() as Promise<OptionItem[]>
+    }
+
+    export default Vue.extend({
+      components: { XcaTree },
+      data() {
+        return {
+          treeData: [
+            { value: '1', text: 'Root', lazy: true }
+          ] as OptionItem[],
+          childrenFetcher: fetchChildren
+        }
+      }
+    })
+    ```
+
+    <Tip>
+      The `.d.ts` file exports all public types: `OptionItem`, `OptionLink`, `Link`, `ToolbarOption`, resolver function types (`OptionValueResolver`, `OptionChildrenFetcher`, `IsLazyResolver`, etc.), and the component class `XcaTree` itself.
+    </Tip>
+  </Step>
+</Steps>
+
+## Distribution files
+
+The `dist/` directory contains three files. You only need to import the ones relevant to your setup.
+
+| File | Format | Use case |
+|---|---|---|
+| `dist/xca-tree.umd.js` | UMD | `<script>` tags, CDN delivery, legacy bundlers |
+| `dist/xca-tree.esm.js` | ESM | `import` statements with Webpack, Vite, or Rollup |
+| `dist/xca-tree.css` | CSS | Required in all setups — import once, globally |
+
+<Note>
+  The `package.json` `exports` map routes `import 'xca-tree'` to the ESM build and `require('xca-tree')` to the UMD build automatically. You do not need to reference the `dist/` path manually when using a modern bundler.
+</Note>
+
+## Compatibility
+
+| Requirement | Details |
+|---|---|
+| **Vue version** | Vue **2.x** only (2.6.x and 2.7.x tested). Vue 3 is not supported. |
+| **Browsers** | Chrome 60+, Firefox 55+, Safari 12+, Edge 79+ |
+| **Webpack** | Webpack 4+ |
+| **Vite** | Vite 3+ |
+| **Rollup** | Rollup 2+ |
+| **Runtime dependencies** | Vue 2.x only — drag-and-drop is implemented with the native HTML5 Drag and Drop API; no additional libraries required |
+
+## License
+
+XcaTree is released under the **MIT License** for open-source and commercial projects. You can use, modify, and distribute it freely with no royalties or attribution requirements beyond preserving the license notice.
+
+If your organization requires a dedicated support agreement, priority bug fixes, or custom feature development, commercial licensing is available. Reach out through the contact page for details.
+
+<Warning>
+  XcaTree targets Vue **2.x** exclusively. Installing it inside a Vue 3 project will not work. A Vue 3 port is planned but not yet released.
+</Warning>

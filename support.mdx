@@ -1,0 +1,149 @@
+---
+title: "XcaTree Support and Frequently Asked Questions"
+sidebarTitle: "Support"
+description: "Find help for XcaTree through documentation, GitHub issues, and commercial support. Answers to the most common integration and configuration questions."
+---
+
+Whether you're just getting started or running into a specific edge case, there are several ways to find answers and get help with XcaTree. Start with the documentation, search open GitHub Issues, and — if you're on a Commercial or Enterprise plan — open a support ticket directly.
+
+## Documentation
+
+The fastest way to resolve most questions is to search the docs. Here are the key sections to check first:
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Install XcaTree, register the component, and render your first tree in minutes.
+  </Card>
+  <Card title="Props Reference" icon="list" href="/api/props">
+    Every prop, its type, default value, and a description of what it does.
+  </Card>
+  <Card title="Methods & Events" icon="bolt" href="/api/methods">
+    Programmatic API for selecting, updating, filtering, expanding, and navigating nodes.
+  </Card>
+  <Card title="Theming" icon="palette" href="/customization/theming">
+    Override CSS Variables to customize colors, spacing, and dark mode behavior.
+  </Card>
+  <Card title="Custom Icons" icon="image" href="/customization/icons">
+    Replace default folder and file icons globally or on a per-node basis.
+  </Card>
+  <Card title="Changelog" icon="clock" href="/changelog">
+    Release history, feature additions, and breaking changes across versions.
+  </Card>
+</CardGroup>
+
+## GitHub Issues
+
+Found a bug, or want to request a feature? Open an issue on GitHub. Before filing, search the existing issues to see if it has already been reported.
+
+<Card title="Open a GitHub Issue" icon="github" href="https://github.com/RedTeapot/xca/issues">
+  Report a bug, ask a question, or suggest a feature. Include your XcaTree version, Vue version, a minimal reproduction, and a description of the expected vs. actual behavior.
+</Card>
+
+When you file a bug report, include:
+
+- **XcaTree version** — check your `package.json`
+- **Vue version** — `2.x` patch version matters for some edge cases
+- **Minimal reproduction** — a CodeSandbox or GitHub repo that isolates the problem
+- **Expected behavior** vs. **actual behavior**
+- **Browser and OS** if the issue is visual or drag-related
+
+## Commercial support
+
+If you are on a **Commercial** or **Enterprise** plan, you have access to ticket-based support with priority response times. Enterprise customers also have a dedicated support contact.
+
+<CardGroup cols={2}>
+  <Card title="Commercial plan support" icon="ticket">
+    Open a support ticket by emailing **support@xcatree.dev** from the address associated with your license.
+  </Card>
+  <Card title="Enterprise plan support" icon="building">
+    Contact your dedicated support engineer directly. Check your onboarding email for contact details and escalation paths.
+  </Card>
+</CardGroup>
+
+See the [Pricing](/pricing) page for a full breakdown of what each plan includes.
+
+## Frequently asked questions
+
+<AccordionGroup>
+  <Accordion title="Does XcaTree support Vue 3?">
+    No. XcaTree is a Vue 2.x component and is not compatible with Vue 3. The component uses Vue 2–specific APIs and build-time assumptions that are not forward-compatible. If your project is on Vue 3, XcaTree is not the right fit at this time.
+  </Accordion>
+
+  <Accordion title="How do I update tree data without re-rendering the whole tree?">
+    Use the three targeted mutation methods instead of replacing the `options` prop:
+
+    - `updateOption(node, updates)` — patch one or more fields on an existing node
+    - `addOption(targetNode, newNode, position)` — insert a new node as a child or sibling of an existing one
+    - `removeOption(node)` — remove a node and its descendants
+
+    These methods update only the affected part of the tree and trigger the `optionchange` event. Replacing the entire `options` array resets all expand/collapse state, so avoid it for incremental changes.
+
+    ```js
+    // Rename a node in place
+    this.$refs.tree.updateOption(myNode, { text: 'New Name' })
+
+    // Add a child node
+    this.$refs.tree.addOption(parentNode, { value: 'new-child', text: 'New Item' }, 'child')
+
+    // Remove a node
+    this.$refs.tree.removeOption(nodeToDelete)
+    ```
+  </Accordion>
+
+  <Accordion title="Can I use XcaTree without a build tool?">
+    Yes. XcaTree ships a UMD bundle at `dist/xca-tree.umd.js`. Include it with a `<script>` tag after Vue 2 and it registers `xca-tree` as a global component automatically. No Webpack, Vite, or Rollup required.
+
+    ```html
+    <script src="https://cdn.example.com/vue/2.7.16/vue.min.js"></script>
+    <script src="dist/xca-tree.umd.js"></script>
+    <link rel="stylesheet" href="dist/xca-tree.css" />
+
+    <div id="app">
+      <xca-tree :options="nodes" />
+    </div>
+
+    <script>
+      new Vue({
+        el: '#app',
+        data: { nodes: [{ value: '1', text: 'Root' }] }
+      })
+    </script>
+    ```
+  </Accordion>
+
+  <Accordion title="How do I enable dark mode?">
+    Set `data-xca-theme="dark"` on the `<html>` element. XcaTree's CSS watches for this attribute and applies the dark-mode color palette automatically.
+
+    ```html
+    <html data-xca-theme="dark">
+    ```
+
+    To auto-detect the user's operating system preference and keep it in sync, call `XCA.initTheme()` once at page load:
+
+    ```js
+    import { initTheme } from 'xca'
+    initTheme()
+    ```
+
+    `initTheme()` also persists a manually chosen theme to `localStorage` so it survives page reloads. See the [Theming](/customization/theming) guide for the full API.
+  </Accordion>
+
+  <Accordion title="Why does my change event fire with my original data object?">
+    This is by design. XcaTree maintains internal references to your original node objects and passes them back through events (via `_original`). This avoids the overhead of deep-cloning your data on every interaction and lets you mutate nodes directly when needed.
+
+    The practical implication: **do not replace the entire `options` array inside a `@change` handler** using the returned item reference. Doing so re-triggers the watcher, which re-triggers the event, causing an infinite loop. Instead, use `updateOption`, `addOption`, or `removeOption` to make targeted changes, or use `this.$set` to update individual properties.
+
+    ```js
+    // ✅ Safe: targeted update
+    onTreeChange(value, item) {
+      this.$refs.tree.updateOption(item, { selected: true })
+    }
+
+    // ❌ Unsafe: replacing options with a mutated reference
+    onTreeChange(value, item) {
+      item.selected = true
+      this.options = [...this.options] // triggers infinite loop
+    }
+    ```
+  </Accordion>
+</AccordionGroup>

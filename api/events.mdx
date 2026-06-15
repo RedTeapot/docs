@@ -1,0 +1,260 @@
+---
+title: "XcaTree Component Events Reference"
+sidebarTitle: "Events"
+description: "Reference for all XcaTree Vue component events. Covers change, sortchange, expand, collapse, nodeclick, optionchange, and linkclick with parameter types."
+---
+
+XcaTree emits a focused set of events that cover the full lifecycle of user interaction and programmatic data mutation. You listen to them with Vue's standard `@event` syntax on the component tag. Every node parameter passed through an event is the **raw original data object** — not an internal copy — so you can read and mutate its fields directly.
+
+## Quick-scan overview
+
+| Event | When it fires | Key parameters |
+|---|---|---|
+| `change` | Selection changes | `value`, `itemOrItems` |
+| `sortchange` | Drag-and-drop completes | `draggingItem`, `dropItem`, `dropType` |
+| `expand` | A node is expanded | `item` |
+| `collapse` | A node is collapsed | `item` |
+| `nodeclick` | A node is clicked (no selection change) | `item` |
+| `optionchange` | Tree data is mutated via an API method | `item`, `data` |
+| `linkclick` | A toolbar or node link is clicked | `link` |
+
+---
+
+## `change`
+
+Fires whenever the selection changes — whether triggered by a user click or by calling `setSelectedOptionValues` programmatically.
+
+<ParamField body="value" type="string | number | (string | number)[] | null">
+  The new selected value. In single-select mode this is a single primitive or `null`; in multi-select mode it is an array of values.
+</ParamField>
+
+<ParamField body="itemOrItems" type="OptionItem | OptionItem[] | null">
+  The raw data object(s) for the selected node(s). Mirrors the shape of `value`: a single object or `null` in single-select mode, an array in multi-select mode.
+</ParamField>
+
+> **Warning — circular update risk:** `itemOrItems` holds a direct reference to the internal node data. If you mutate it inside a `change` handler and then reassign the whole `options` array, you can trigger an infinite update loop. Use `updateOption`, `addOption`, or `removeOption` to mutate data safely, or use `this.$set` to patch individual fields.
+
+```vue
+<template>
+  <xca-tree :options="nodes" @change="onSelectionChange" />
+</template>
+
+<script>
+export default {
+  methods: {
+    onSelectionChange(value, itemOrItems) {
+      // Single-select: value is a string/number, itemOrItems is one OptionItem
+      console.log('Selected value:', value);
+      console.log('Selected node:', itemOrItems);
+    }
+  }
+};
+</script>
+```
+
+---
+
+## `sortchange`
+
+Fires after a drag-and-drop operation completes. At this point the internal tree data has already been rearranged; use the parameters to persist the new order to your backend.
+
+<ParamField body="draggingItem" type="OptionItem">
+  The raw data of the node that was dragged.
+</ParamField>
+
+<ParamField body="dropItem" type="OptionItem | null">
+  The raw data of the target node the dragged item was dropped onto or relative to. `null` when the node is dropped at the root level with no adjacent sibling.
+</ParamField>
+
+<ParamField body="dropType" type="'before' | 'after' | 'inner'">
+  How `draggingItem` was placed relative to `dropItem`:
+
+  | Value | Meaning |
+  |---|---|
+  | `'before'` | Placed as the previous sibling of `dropItem` |
+  | `'after'` | Placed as the next sibling of `dropItem` |
+  | `'inner'` | Placed as the last child of `dropItem` |
+</ParamField>
+
+```vue
+<template>
+  <xca-tree :options="nodes" :draggable="true" @sortchange="onSortChange" />
+</template>
+
+<script>
+export default {
+  methods: {
+    async onSortChange(draggingItem, dropItem, dropType) {
+      await api.move({
+        id: draggingItem.id,
+        targetId: dropItem?.id ?? null,
+        position: dropType
+      });
+    }
+  }
+};
+</script>
+```
+
+---
+
+## `expand`
+
+Fires whenever a node transitions from collapsed to expanded — whether triggered by the user clicking the expand arrow or by calling `expandAll` / `expandNode` programmatically.
+
+<ParamField body="item" type="OptionItem">
+  The raw data of the node that was expanded.
+</ParamField>
+
+```vue
+<template>
+  <xca-tree :options="nodes" @expand="onExpand" />
+</template>
+
+<script>
+export default {
+  methods: {
+    onExpand(item) {
+      console.log('Expanded:', item.text);
+    }
+  }
+};
+</script>
+```
+
+---
+
+## `collapse`
+
+Fires whenever a node transitions from expanded to collapsed.
+
+<ParamField body="item" type="OptionItem">
+  The raw data of the node that was collapsed.
+</ParamField>
+
+```vue
+<template>
+  <xca-tree :options="nodes" @collapse="onCollapse" />
+</template>
+
+<script>
+export default {
+  methods: {
+    onCollapse(item) {
+      console.log('Collapsed:', item.text);
+    }
+  }
+};
+</script>
+```
+
+---
+
+## `nodeclick`
+
+Fires when the user clicks a node label. Unlike `change`, this event fires regardless of whether the click modifies selection — including clicks on nodes that are already selected or on disabled nodes. Use it to drive side-panel previews or custom navigation without coupling to selection state.
+
+<ParamField body="item" type="OptionItem">
+  The raw data of the node that was clicked.
+</ParamField>
+
+```vue
+<template>
+  <xca-tree :options="nodes" @nodeclick="onNodeClick" />
+</template>
+
+<script>
+export default {
+  methods: {
+    onNodeClick(item) {
+      // Preview the node without changing selection
+      this.previewItem = item;
+    }
+  }
+};
+</script>
+```
+
+---
+
+## `optionchange`
+
+Fires after tree data is mutated through the component's API methods: `updateOption`, `addOption`, or `removeOption`. Use this event to keep your external data store in sync with changes made via the component API.
+
+<ParamField body="item" type="OptionItem">
+  The raw data of the node that was affected. For `add-root` actions, this is the newly added root node.
+</ParamField>
+
+<ParamField body="data" type="OptionChangeData">
+  A discriminated union describing what changed. The `action` field identifies the mutation type:
+
+  | `action` | Additional fields | When |
+  |---|---|---|
+  | `'update'` | Any updated key-value pairs (plus `action`) | `updateOption` was called |
+  | `'add'` | `added: OptionItem`, `position: 'child' \| 'sibling'` | `addOption` added a non-root node |
+  | `'add-root'` | `added: OptionItem` | `addOption` added a root-level node |
+  | `'remove'` | *(none)* | `removeOption` was called |
+</ParamField>
+
+```vue
+<template>
+  <xca-tree ref="tree" :options="nodes" @optionchange="onOptionChange" />
+</template>
+
+<script>
+export default {
+  methods: {
+    onOptionChange(item, data) {
+      if (data.action === 'add') {
+        api.createNode({ parentId: item.id, node: data.added });
+      } else if (data.action === 'remove') {
+        api.deleteNode(item.id);
+      } else if (data.action === 'update') {
+        api.updateNode(item.id, item);
+      }
+    }
+  }
+};
+</script>
+```
+
+---
+
+## `linkclick`
+
+Fires when the user clicks an item from the toolbar "more" dropdown (`links`) or a node context menu (`optionLinks`). Both parameter slots carry the same clicked item reference.
+
+<ParamField body="link" type="Link | OptionLink">
+  The configuration object for the link that was clicked. Inspect the shape to distinguish between a `Link` (toolbar) and an `OptionLink` (node): `OptionLink` has an `onclick` that accepts an `item` argument.
+</ParamField>
+
+```vue
+<template>
+  <xca-tree
+    :options="nodes"
+    :links="toolbarLinks"
+    :option-links="nodeLinks"
+    @linkclick="onLinkClick"
+  />
+</template>
+
+<script>
+export default {
+  data() {
+    return {
+      toolbarLinks: [
+        { text: 'Export', onclick() { exportAll(); } }
+      ],
+      nodeLinks: [
+        { text: 'Edit', onclick(item) { this.openEdit(item); } }
+      ]
+    };
+  },
+  methods: {
+    onLinkClick(link) {
+      console.log('Clicked link:', link.text);
+    }
+  }
+};
+</script>
+```

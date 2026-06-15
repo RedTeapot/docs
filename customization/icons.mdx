@@ -1,0 +1,197 @@
+---
+title: "Custom Icons for XcaTree Nodes and States"
+sidebarTitle: "Icons"
+description: "Set per-node icons with optionIconKey, and replace the default folder, file, and loading icons with your own SVGs or image URLs."
+---
+
+XcaTree displays folder and file icons next to every node by default. You can replace those icons at the component level with your own SVGs or image URLs, and you can assign a completely different icon to each individual node — either by pointing to a field in your data or by supplying a resolver function that gives you full programmatic control.
+
+## Global icon props
+
+These four props replace the built-in icons for every node that matches their role. All of them accept either an SVG string (rendered inline) or an image URL (rendered as an `<img>` tag).
+
+| Prop | Default | When it applies |
+|---|---|---|
+| `folderIcon` | Built-in folder SVG | Folder nodes in their **collapsed** state |
+| `folderOpenIcon` | Built-in open-folder SVG | Folder nodes in their **expanded** state |
+| `fileIcon` | Built-in file SVG | Leaf nodes (no children) |
+| `loadingIcon` | Built-in spinner SVG | While a lazy node is loading its children |
+
+### SVG string example
+
+Pass an inline SVG string to get a crisp, color-inheriting icon at any resolution:
+
+```vue
+<template>
+  <xca-tree
+    :options="nodes"
+    :folder-icon="folderSvg"
+    :folder-open-icon="folderOpenSvg"
+    :file-icon="fileSvg"
+  />
+</template>
+
+<script>
+export default {
+  data() {
+    return {
+      nodes: [ /* your data */ ],
+      folderSvg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+        <path fill="currentColor" d="M1 3.5A1.5 1.5 0 0 1 2.5 2h3.764c.414 0 .811.165 1.104.457l.853.853H14.5A1.5 1.5 0 0 1 16 4.857V12.5a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 1 12.5v-9z"/>
+      </svg>`,
+      folderOpenSvg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+        <path fill="currentColor" d="M1 3.5A1.5 1.5 0 0 1 2.5 2h3.764c.414 0 .811.165 1.104.457l.853.853H14.5A1.5 1.5 0 0 1 16 4.857v.293l-1.5 6H1.5l-1.447-5.789A1.5 1.5 0 0 1 1 4.5v-1z"/>
+      </svg>`,
+      fileSvg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+        <path fill="currentColor" d="M4 0h8a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2zm0 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H4z"/>
+      </svg>`,
+    }
+  }
+}
+</script>
+```
+
+### Image URL example
+
+Pass any image URL (PNG, WebP, or SVG file) when you already have icon assets on a CDN or in your `public` folder:
+
+```vue
+<xca-tree
+  :options="nodes"
+  folder-icon="/icons/folder.png"
+  folder-open-icon="/icons/folder-open.png"
+  file-icon="/icons/file.png"
+  loading-icon="/icons/spinner.svg"
+/>
+```
+
+<Note>
+  Image URLs are rendered as `<img>` tags and scale to `--xca-tree-icon-size` (default `16px`). SVG strings are rendered inline and inherit `currentColor`, so they automatically match the node's text color in both light and dark mode.
+</Note>
+
+## Per-node icons with `optionIconKey`
+
+The `optionIconKey` prop lets each node in your data carry its own icon. Set it to the name of the field (or a dot-path to a nested field) that holds the icon value, or pass a resolver function for full control.
+
+### String field name
+
+If each node in your data has an `icon` field (or any other field name you choose):
+
+```js
+// Data
+const nodes = [
+  { id: 1, name: 'Documents', icon: '/icons/docs-folder.svg', children: [ /* … */ ] },
+  { id: 2, name: 'README.md', icon: '<svg>…</svg>' },
+]
+```
+
+```vue
+<xca-tree
+  :options="nodes"
+  option-value-key="id"
+  option-text-key="name"
+  option-icon-key="icon"
+/>
+```
+
+### Dot-path to a nested field
+
+Use dot notation to read a deeply nested property:
+
+```js
+// Data
+const nodes = [
+  { id: 1, name: 'Project', meta: { display: { icon: '/icons/project.svg' } } }
+]
+```
+
+```vue
+<xca-tree
+  :options="nodes"
+  option-value-key="id"
+  option-text-key="name"
+  option-icon-key="meta.display.icon"
+/>
+```
+
+### Resolver function
+
+Pass a function when you need logic — for example, different icons for leaf vs. folder nodes, or icons based on a file extension:
+
+```vue
+<template>
+  <xca-tree :options="nodes" :option-icon-key="resolveIcon" />
+</template>
+
+<script>
+const FOLDER_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+  <path fill="currentColor" d="M1 3.5A1.5 1.5 0 0 1 2.5 2h3.764c.414 0
+    .811.165 1.104.457l.853.853H14.5A1.5 1.5 0 0 1 16 4.857V12.5a1.5
+    1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 1 12.5v-9z"/>
+</svg>`
+
+const FILE_ICONS = {
+  js:   '/icons/js.svg',
+  ts:   '/icons/ts.svg',
+  vue:  '/icons/vue.svg',
+  json: '/icons/json.svg',
+}
+
+export default {
+  data() {
+    return { nodes: [ /* your data */ ] }
+  },
+  methods: {
+    resolveIcon(node) {
+      // Folder nodes have children
+      if (Array.isArray(node.children)) {
+        return FOLDER_SVG
+      }
+      // Leaf nodes — pick an icon based on file extension
+      const ext = node.name?.split('.').pop()
+      return FILE_ICONS[ext] ?? '/icons/file.svg'
+    }
+  }
+}
+</script>
+```
+
+<Tip>
+  The resolver function receives the **original** node object from your data, so you can read any field you like — not just the ones mapped by `optionTextKey` or `optionValueKey`.
+</Tip>
+
+## Per-node `icon` field on `OptionItem`
+
+You can also set the `icon` field directly on each node object as a first-class property. XcaTree reads it automatically when `optionIconKey` is not configured:
+
+```js
+const nodes = [
+  {
+    value: 'components',
+    text: 'Components',
+    icon: '<svg>…folder svg…</svg>',
+    children: [
+      {
+        value: 'button',
+        text: 'Button.vue',
+        icon: '/icons/vue-file.svg'
+      }
+    ]
+  }
+]
+```
+
+## Combining global and per-node icons
+
+Global icon props (`folderIcon`, `fileIcon`, etc.) act as fallbacks. When a node provides its own icon via `optionIconKey` or the `icon` field, that per-node icon takes priority. This lets you set sensible defaults globally while still customizing specific nodes.
+
+```vue
+<xca-tree
+  :options="nodes"
+  :folder-icon="defaultFolderSvg"
+  :file-icon="defaultFileSvg"
+  option-icon-key="customIcon"
+/>
+<!-- Nodes that have a customIcon field use it; all others fall back to
+     defaultFolderSvg or defaultFileSvg based on whether they have children. -->
+```

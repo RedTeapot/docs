@@ -1,0 +1,441 @@
+---
+title: "XcaTree TypeScript Types and Interfaces"
+sidebarTitle: "Types"
+description: "TypeScript type reference for XcaTree. Covers OptionItem, resolver function signatures, OptionLink, ToolbarOption, OptionChangeData, and all other exported types."
+---
+
+XcaTree ships a complete set of TypeScript declarations so you get full type checking and IDE autocompletion in TypeScript projects. This page documents every exported type and interface — what each field means, when you use it, and how the types relate to the props and events that reference them. Import any of these types directly from the package.
+
+```ts
+import type {
+  OptionItem,
+  OptionValueResolver,
+  OptionChildrenFetcher,
+  OptionChangeData,
+  // ...
+} from 'xca-tree';
+```
+
+---
+
+## Node data
+
+### `OptionItem`
+
+The canonical shape for a single tree node. XcaTree normalises all incoming data to this interface internally. The fields `text`, `value`, `disabled`, and `lazy` are first-class properties that the component reads directly; all other fields are passed through transparently and are accessible in every event callback.
+
+```ts
+interface OptionItem {
+  /** Display label shown in the tree. */
+  text: string;
+
+  /** Unique identifier for this node. */
+  value: string | number;
+
+  /** When true the node renders with disabled styling and cannot be selected
+   *  (unless disabledOptionSelectable is set). */
+  disabled?: boolean;
+
+  /** Marks the node as a lazy-load node. When true and optionChildrenFetcher
+   *  is configured, expanding the node triggers an async fetch. The flag is
+   *  cleared automatically after the fetch completes. */
+  lazy?: boolean;
+
+  /** Optional associated item count (used for display purposes in some layouts). */
+  count?: number;
+
+  /** Child nodes. An empty array [] and undefined/null are treated differently:
+   *  [] means "folder with no items" and can be made expandable via
+   *  isChildrenEmptyOptionExpandable; undefined/null means "leaf node". */
+  children?: OptionItem[];
+
+  /** Per-node icon — an inline SVG string or an image URL. Takes precedence over
+   *  the component-level folderIcon / fileIcon props. */
+  icon?: string;
+
+  /** Any additional fields from your domain data are preserved and accessible
+   *  in event callbacks and resolver functions. */
+  [key: string]: any;
+}
+```
+
+**Usage note:** When you use `optionValueKey`, `optionTextKey`, or `optionChildrenKey` to map from different field names, the component reads your original fields and maps them onto the `OptionItem` structure internally. The raw objects you pass in are still accessible via event parameters.
+
+---
+
+## Resolver function types
+
+These types represent the function form accepted by the `optionXxxKey` props. Every resolver receives the raw node data and runs with `this` bound to the XcaTree component instance, giving you access to component methods if needed.
+
+### `OptionValueResolver`
+
+```ts
+type OptionValueResolver = (
+  this: XcaTree,
+  optionItem: OptionItem
+) => string | number;
+```
+
+Extracts the unique identifier from a raw node. Use this instead of `optionValueKey: string` when your ID lives inside a nested object or requires computation.
+
+```ts
+// Concatenate two fields into a synthetic key
+const resolver: OptionValueResolver = function(item) {
+  return `${item.type}:${item.id}`;
+};
+```
+
+---
+
+### `OptionTextResolver`
+
+```ts
+type OptionTextResolver = (
+  this: XcaTree,
+  optionItem: OptionItem
+) => string;
+```
+
+Extracts the display label from a raw node. Use when the label requires formatting, e.g. appending a code or count.
+
+```ts
+const resolver: OptionTextResolver = function(item) {
+  return item.count != null ? `${item.name} (${item.count})` : item.name;
+};
+```
+
+---
+
+### `OptionDisabledResolver`
+
+```ts
+type OptionDisabledResolver = (
+  this: XcaTree,
+  optionItem: OptionItem
+) => boolean;
+```
+
+Determines at runtime whether a given node should be rendered as disabled.
+
+```ts
+const resolver: OptionDisabledResolver = function(item) {
+  return !item.permissions.includes('select');
+};
+```
+
+---
+
+### `OptionDisabledTextProvider`
+
+```ts
+type OptionDisabledTextProvider = (
+  this: XcaTree,
+  optionItem: OptionItem
+) => string;
+```
+
+Returns the tooltip message shown when a user hovers over a disabled node. If the function throws, the component falls back to `'已禁选'`.
+
+```ts
+const provider: OptionDisabledTextProvider = function(item) {
+  return `${item.text} requires the Admin role`;
+};
+```
+
+---
+
+### `OptionChildrenResolver`
+
+```ts
+type OptionChildrenResolver = (
+  this: XcaTree,
+  optionItem: OptionItem
+) => OptionItem[];
+```
+
+Reads the children array from a raw node when your data uses a non-standard field name or requires transformation.
+
+> **Note:** When you use a function for `optionChildrenKey`, `addOption` cannot write children back into the original data structure because it cannot locate the backing array. Use a string key if you need `addOption` to work.
+
+---
+
+### `OptionIconResolver`
+
+```ts
+type OptionIconResolver = (
+  this: XcaTree,
+  optionItem: OptionItem
+) => string;
+```
+
+Returns an inline SVG string or image URL for a specific node's icon, enabling per-node icon customisation.
+
+```ts
+const resolver: OptionIconResolver = function(item) {
+  return item.type === 'department' ? deptSvg : teamSvg;
+};
+```
+
+---
+
+## Async loading types
+
+### `OptionChildrenFetcher`
+
+```ts
+type OptionChildrenFetcher = (
+  item: OptionItem
+) => OptionItem | OptionItem[] | Promise<OptionItem | OptionItem[]>;
+```
+
+The function you supply to `optionChildrenFetcher` (or the legacy `childrenFetchMethod`). It receives the raw parent node when the user expands a lazy node, and must return the children — synchronously or as a promise. A single object is automatically wrapped in an array.
+
+```ts
+const fetcher: OptionChildrenFetcher = async (item) => {
+  const { data } = await api.getChildren(item.id);
+  return data; // OptionItem[]
+};
+```
+
+---
+
+### `IsLazyResolver`
+
+```ts
+type IsLazyResolver = (
+  this: XcaTree,
+  node: OptionItem
+) => boolean;
+```
+
+Used by the `isLazy` prop to decide whether a node without an explicit `lazy: true` flag should still be treated as a lazy-load node. Return `true` to enable lazy loading for that node.
+
+The built-in default marks any node whose `children` field is an empty array as lazy. Override this when some of your empty-children nodes are true leaf nodes that should not trigger fetches.
+
+```ts
+// Only nodes that explicitly carry hasMore: true are lazy
+const resolver: IsLazyResolver = (node) => !!node.hasMore;
+```
+
+---
+
+### `IsChildrenEmptyExpandableResolver`
+
+```ts
+type IsChildrenEmptyExpandableResolver = (
+  this: XcaTree,
+  node: OptionItem
+) => boolean;
+```
+
+Used by the `isChildrenEmptyOptionExpandable` prop. Return `true` for a node to make it expandable even when its `children` array is empty. If the function throws, the error is caught and the node is treated as non-expandable (`false`).
+
+```ts
+// Only folder-type nodes with an empty children array show an expand arrow
+const resolver: IsChildrenEmptyExpandableResolver = (node) => node.type === 'folder';
+```
+
+---
+
+## Drag & drop types
+
+### `OptionDraggableResolver`
+
+```ts
+type OptionDraggableResolver = (
+  draggingNode: OptionItem,
+  targetNode: OptionItem,
+  dropType: 'before' | 'after' | 'inner'
+) => boolean;
+```
+
+Used by the `draggable` prop when you need fine-grained control over which drop operations are permitted. Return `true` to allow the drop, `false` to cancel it.
+
+| `dropType` | Meaning |
+|---|---|
+| `'before'` | `draggingNode` would become the previous sibling of `targetNode` |
+| `'after'` | `draggingNode` would become the next sibling of `targetNode` |
+| `'inner'` | `draggingNode` would become a child of `targetNode` |
+
+```ts
+// Prevent moving a node into one of its own descendants
+const resolver: OptionDraggableResolver = (dragging, target, type) => {
+  if (type !== 'inner') return true;
+  return !isAncestor(dragging, target);
+};
+```
+
+---
+
+## Filtering types
+
+### `OptionMatcher`
+
+```ts
+type OptionMatcher = (option: OptionItem) => boolean;
+```
+
+A predicate function passed to `optionMatcher` (prop) or `filterOptions` (method). Return `true` for nodes that should remain visible during a filter operation.
+
+```ts
+const matcher: OptionMatcher = (option) =>
+  option.text.toLowerCase().includes(searchQuery.toLowerCase());
+```
+
+---
+
+## Configuration interfaces
+
+### `Link`
+
+Describes one entry in the toolbar's "more" dropdown, configured via the `links` prop.
+
+```ts
+interface Link {
+  /** The label text for this action. */
+  text: string;
+
+  /** Called when the user clicks the item.
+   *  `this` is bound to the XcaTree instance. */
+  onclick: (this: XcaTree) => void;
+
+  /** Optional confirmation prompt shown before executing onclick.
+   *  - String: used as the prompt text.
+   *  - Function: called to retrieve the prompt text; if it throws the action
+   *    still executes without a prompt.
+   *  - Falsy / empty string: no prompt, executes immediately. */
+  confirmText?: string | ((this: XcaTree) => string);
+}
+```
+
+```ts
+const link: Link = {
+  text: 'Export all',
+  onclick() { this.getOptions().then(exportToCSV); },
+  confirmText: 'This will export the entire tree. Continue?'
+};
+```
+
+---
+
+### `OptionLink`
+
+Describes one entry in a node's context menu, configured via the `optionLinks` prop. Extends the `Link` concept with per-node visibility and icon support.
+
+```ts
+interface OptionLink {
+  /** The label text for this action. */
+  text: string;
+
+  /** Called when the user clicks the item.
+   *  `this` is bound to the XcaTree instance; `item` is the raw node. */
+  onclick: (this: XcaTree, item: OptionItem) => void;
+
+  /** Optional confirmation prompt.
+   *  - String: same prompt for every node.
+   *  - Function: receives the raw node and returns the prompt text;
+   *    if it throws the action still executes. */
+  confirmText?: string | ((this: XcaTree, optionItem: OptionItem) => string);
+
+  /** Controls whether this action is shown for a given node.
+   *  Return false to hide the action for that node entirely.
+   *  When omitted the action is always visible. */
+  isVisible?: (optionItem: OptionItem) => boolean;
+
+  /** Icon displayed next to the action label — SVG string or image URL.
+   *  Falls back to a default icon when omitted. */
+  icon?: string;
+}
+```
+
+```ts
+const deleteLink: OptionLink = {
+  text: 'Delete',
+  onclick(item) { this.removeOption(item); },
+  confirmText: (item) => `Delete "${item.text}"? This cannot be undone.`,
+  isVisible: (item) => !item.system, // hide for system nodes
+};
+```
+
+---
+
+### `ToolbarOption`
+
+Describes an icon button rendered directly in the toolbar, configured via the `toolbarOptions` prop.
+
+```ts
+interface ToolbarOption {
+  /** Unique identifier for this button (used as a key internally). */
+  key: string;
+
+  /** Button icon — inline SVG string or image URL. */
+  icon?: string;
+
+  /** Button label text (used as a fallback tooltip when tooltip is absent). */
+  text?: string;
+
+  /** Tooltip text shown on hover. */
+  tooltip?: string;
+
+  /** When true the button is rendered in a disabled state and clicks are ignored. */
+  disabled?: boolean;
+
+  /** Called when the user clicks the button.
+   *  `this` is bound to the XcaTree instance. */
+  onClick: (this: XcaTree) => void;
+}
+```
+
+```ts
+const addButton: ToolbarOption = {
+  key: 'add-root',
+  icon: plusSvg,
+  tooltip: 'Add root node',
+  onClick() {
+    this.addOption(null, { text: 'New Node', value: Date.now() }, 'sibling');
+  }
+};
+```
+
+---
+
+## Event payload types
+
+### `OptionChangeData`
+
+The second parameter of the `optionchange` event. It is a discriminated union — switch on `data.action` to handle each mutation case.
+
+```ts
+type OptionChangeData =
+  | { action: 'update'; [key: string]: any }
+  | { action: 'add'; added: OptionItem; position: 'child' | 'sibling' }
+  | { action: 'add-root'; added: OptionItem }
+  | { action: 'remove' };
+```
+
+| `action` | Source method | Extra fields |
+|---|---|---|
+| `'update'` | `updateOption` | The updated key-value pairs spread alongside `action` |
+| `'add'` | `addOption` (non-root) | `added` — the new `OptionItem`; `position` — `'child'` or `'sibling'` |
+| `'add-root'` | `addOption(null, node, 'sibling')` | `added` — the new root `OptionItem` |
+| `'remove'` | `removeOption` | *(none)* |
+
+```ts
+function handleOptionChange(item: OptionItem, data: OptionChangeData) {
+  switch (data.action) {
+    case 'update':
+      // data contains the updated fields plus 'action'
+      api.patch(item.id, item);
+      break;
+    case 'add':
+      api.create({ parentId: item.id, node: data.added, rel: data.position });
+      break;
+    case 'add-root':
+      api.createRoot(data.added);
+      break;
+    case 'remove':
+      api.delete(item.id);
+      break;
+  }
+}
+```

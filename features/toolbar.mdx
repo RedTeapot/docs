@@ -1,0 +1,254 @@
+---
+title: "Toolbar: Search, Navigation, and Custom Actions"
+sidebarTitle: "Toolbar"
+description: "XcaTree's built-in toolbar provides search, expand-all, locate-current, and a configurable more-menu. Add custom icon buttons via toolbarOptions."
+---
+
+XcaTree ships with a built-in toolbar that sits above the tree and gives users quick access to search, navigation, and custom actions — all without writing any extra UI code. The toolbar is visible by default; configure it progressively by adding an `objectName` label, wiring up search, or registering your own buttons and menu items.
+
+## Show or hide the toolbar
+
+The toolbar is on by default. Set `showToolbar` to `false` to hide it entirely.
+
+<ParamField body="showToolbar" type="boolean" default="true">
+  Controls whether the toolbar is rendered. When `false`, none of the toolbar features — search, locate, expand all, collapse all, or the more-menu — are accessible through the UI.
+</ParamField>
+
+```html
+<!-- Toolbar visible (default) -->
+<xca-tree :options="treeData" />
+
+<!-- Toolbar hidden -->
+<xca-tree :options="treeData" :show-toolbar="false" />
+```
+
+## Label the toolbar with `objectName`
+
+Use `objectName` to display a short descriptive label on the left side of the toolbar. This helps users understand what the tree represents, especially when multiple trees appear on the same page.
+
+<ParamField body="objectName" type="string" default="''">
+  Text displayed on the left side of the toolbar. Use a concise noun phrase, such as `"Organisation"` or `"File system"`.
+</ParamField>
+
+```html
+<xca-tree
+  :options="treeData"
+  object-name="Organisation"
+/>
+```
+
+## Built-in toolbar buttons
+
+The toolbar renders the following controls automatically, each activated only when its prerequisite is met:
+
+| Button | Prerequisite | What it does |
+|---|---|---|
+| 🔍 Search | `optionMatcher` is configured | Expands an inline search field; filters the tree as the user types |
+| 📍 Locate current | A node is selected | Expands the selected node's ancestor path and scrolls it into view |
+| ➕ Expand all | Always visible | Expands every node that has children |
+| ➖ Collapse all | Always visible | Collapses all expanded nodes |
+| ⋯ More | `links` or `toolbarOptions` is configured | Opens a dropdown with your custom actions |
+
+### Enable search
+
+Provide an `optionMatcher` function to activate the search field. XcaTree calls it with each node's raw data as the user types and shows only matching nodes (plus their ancestor paths).
+
+<ParamField body="optionMatcher" type="(option: OptionItem) => boolean">
+  Called for each node during filtering. Return `true` when the node matches the current query. Receives the raw node data object.
+</ParamField>
+
+```html
+<xca-tree
+  :options="treeData"
+  :option-matcher="matchByText"
+/>
+```
+
+```js
+methods: {
+  matchByText(option) {
+    return option.text.toLowerCase().includes(this.query.toLowerCase())
+  }
+}
+```
+
+<Tip>
+  You can also call `this.$refs.tree.filterOptions(matcher)` programmatically — for example, to drive search from an external input field. Pass `null` to clear the filter instantly.
+</Tip>
+
+## Add icon buttons with `toolbarOptions`
+
+Use `toolbarOptions` to place custom icon buttons directly in the toolbar. Each button is always visible (unless `disabled`) and triggers an `onClick` callback with `this` bound to the XcaTree instance.
+
+<ParamField body="toolbarOptions" type="ToolbarOption[]" default="[]">
+  Array of custom icon buttons to render in the toolbar. Displayed in the order provided.
+</ParamField>
+
+### `ToolbarOption` fields
+
+<ParamField body="key" type="string" required>
+  Unique identifier for the button. Used internally to key the rendered element.
+</ParamField>
+
+<ParamField body="icon" type="string">
+  Button icon — an SVG string or image URL.
+</ParamField>
+
+<ParamField body="text" type="string">
+  Button label. Also used as fallback tooltip text when `tooltip` is not set.
+</ParamField>
+
+<ParamField body="tooltip" type="string">
+  Tooltip text shown on hover. Overrides `text` for the tooltip when both are provided.
+</ParamField>
+
+<ParamField body="disabled" type="boolean">
+  When `true`, the button is rendered but cannot be clicked.
+</ParamField>
+
+<ParamField body="onClick" type="() => void" required>
+  Called when the button is clicked. `this` inside the function points to the XcaTree instance, giving you access to all component methods.
+</ParamField>
+
+### Example: export button
+
+```html
+<xca-tree
+  ref="tree"
+  :options="treeData"
+  :toolbar-options="toolbarButtons"
+  object-name="File system"
+/>
+```
+
+```js
+export default {
+  computed: {
+    toolbarButtons() {
+      return [
+        {
+          key: 'export',
+          icon: exportIconSvg,
+          tooltip: 'Export tree as JSON',
+          onClick: async function () {
+            // 'this' is the XcaTree instance
+            const nodes = await this.getOptions()
+            const json = JSON.stringify(nodes, null, 2)
+            downloadFile('tree.json', json, 'application/json')
+          }
+        },
+        {
+          key: 'add-root',
+          icon: plusIconSvg,
+          tooltip: 'Add root node',
+          onClick() {
+            this.addOption(null, {
+              value: `root-${Date.now()}`,
+              text: 'New root'
+            }, 'sibling')
+          }
+        }
+      ]
+    }
+  }
+}
+```
+
+## Add more-menu items with `links`
+
+For simple text-only actions, use the `links` prop to populate the ⋯ more-menu dropdown. Unlike `toolbarOptions`, `links` entries do not appear as individual toolbar icons — they collect into the dropdown.
+
+<ParamField body="links" type="Link[]" default="[]">
+  Array of items to display inside the more-menu. The ⋯ icon appears in the toolbar only when at least one item is provided.
+</ParamField>
+
+### `Link` fields
+
+<ParamField body="text" type="string" required>
+  Display text for the menu item.
+</ParamField>
+
+<ParamField body="onclick" type="() => void" required>
+  Called when the item is clicked. `this` inside the function points to the XcaTree instance.
+</ParamField>
+
+<ParamField body="confirmText" type="string | (() => string)">
+  Confirmation prompt shown before `onclick` fires.
+  - **String** — shown as-is.
+  - **Function** — called to produce the prompt text; if it throws, the confirmation is skipped and `onclick` fires anyway.
+  - Falsy or omitted — no confirmation.
+</ParamField>
+
+```html
+<xca-tree
+  :options="treeData"
+  :links="moreMenuItems"
+/>
+```
+
+```js
+computed: {
+  moreMenuItems() {
+    return [
+      {
+        text: 'Expand all',
+        onclick() {
+          this.expandAll()
+        }
+      },
+      {
+        text: 'Reset selection',
+        confirmText: 'Clear all selected nodes?',
+        onclick() {
+          this.setSelectedOptionValues([])
+        }
+      }
+    ]
+  }
+}
+```
+
+<Note>
+  You can use both `toolbarOptions` and `links` together. `toolbarOptions` items appear as icon buttons in the toolbar row, while `links` items collect in the more-menu dropdown.
+</Note>
+
+## Track clicks with `linkclick`
+
+XcaTree emits `linkclick` every time a user clicks an item in `toolbarOptions`, `links`, or `optionLinks` (per-node operation buttons). Use this event for analytics or centralised logging.
+
+```html
+<xca-tree
+  :options="treeData"
+  :toolbar-options="toolbarButtons"
+  :links="moreMenuItems"
+  @linkclick="onLinkClick"
+/>
+```
+
+```js
+methods: {
+  onLinkClick(link) {
+    analytics.track('tree_action', { action: link.text })
+  }
+}
+```
+
+## Steps to configure the toolbar
+
+<Steps>
+  <Step title="Set an objectName">
+    Pass a short noun phrase to `object-name` so users know what the tree represents.
+  </Step>
+  <Step title="Enable search">
+    Provide an `optionMatcher` function. The search field appears in the toolbar automatically once this prop is set.
+  </Step>
+  <Step title="Add custom icon buttons">
+    Define a `toolbarOptions` array with one entry per button. Each entry needs a unique `key`, an `icon`, a `tooltip`, and an `onClick` handler.
+  </Step>
+  <Step title="Add more-menu items for secondary actions">
+    For lower-priority actions that don't need a dedicated icon, add them to the `links` array instead. They appear grouped in the ⋯ more-menu dropdown.
+  </Step>
+  <Step title="Optionally listen to linkclick">
+    Add a `@linkclick` handler if you need to log or react to any toolbar or node action in a single place.
+  </Step>
+</Steps>

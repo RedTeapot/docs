@@ -1,0 +1,171 @@
+---
+title: "Async Lazy Loading Children in XcaTree"
+sidebarTitle: "Async Loading"
+description: "Load child nodes on demand with optionChildrenFetcher. Mark nodes with lazy: true and return a Promise from your fetcher to populate children asynchronously."
+---
+
+XcaTree can defer loading child nodes until the user actually expands a branch. This keeps the initial render fast when your tree is backed by a large or deeply nested dataset. Mark which nodes should load lazily, provide a fetcher function that returns the children, and XcaTree handles the loading state and prevents redundant fetches automatically.
+
+## Mark nodes as lazy
+
+Set `lazy: true` on any node in your data to tell XcaTree that its children should be fetched on demand rather than provided up front.
+
+```js
+const treeData = [
+  {
+    value: 'dept-1',
+    text: 'Engineering',
+    children: [
+      { value: 'dept-1-1', text: 'Frontend' }
+    ]
+  },
+  {
+    value: 'dept-2',
+    text: 'Design',
+    lazy: true   // children will be loaded when the user expands this node
+  },
+  {
+    value: 'dept-3',
+    text: 'Product',
+    lazy: true
+  }
+]
+```
+
+<Note>
+  `lazy` is a first-class field alongside `text`, `value`, `disabled`, and `children`. If your data uses a different field name, map it using `optionChildrenKey` or keep a transformer layer that adds `lazy` before passing data to XcaTree.
+</Note>
+
+## Provide a fetcher with `optionChildrenFetcher`
+
+Pass a function to `optionChildrenFetcher`. XcaTree calls it with the raw node data when a lazy node is expanded, and populates that node's children with whatever you return.
+
+<ParamField body="optionChildrenFetcher" type="(item: OptionItem) => OptionItem | OptionItem[] | Promise<OptionItem | OptionItem[]>">
+  Called when a lazy node is expanded. Receives the raw node data object. Return a single child node, an array of child nodes, or a Promise that resolves to either. A single returned object is automatically wrapped in an array.
+</ParamField>
+
+```html
+<xca-tree
+  :options="treeData"
+  :option-children-fetcher="fetchChildren"
+  loading-text="Loading…"
+/>
+```
+
+```js
+methods: {
+  async fetchChildren(item) {
+    const response = await fetch(`/api/departments/${item.value}/children`)
+    const data = await response.json()
+
+    return data.map(dept => ({
+      value: dept.id,
+      text: dept.name,
+      // Mark sub-departments lazy too if they may have their own children
+      lazy: dept.hasChildren
+    }))
+  }
+}
+```
+
+## How lazy detection works
+
+Two conditions must both be true before XcaTree triggers a fetch when a node is expanded:
+
+1. `optionChildrenFetcher` (or its legacy alias `childrenFetchMethod`) is configured.
+2. The node is considered lazy — either because `node.lazy === true` in the raw data, or because your `isLazy` function returns `true` for that node.
+
+The `lazy` flag on the raw data always takes priority over the `isLazy` function.
+
+<Warning>
+  The default `isLazy` implementation treats any node whose `children` is an empty array as lazy. If your data includes leaf nodes with `children: []` that should *not* trigger a fetch, provide a custom `isLazy` — otherwise those leaves will incorrectly show an expand arrow.
+</Warning>
+
+## Customise lazy detection with `isLazy`
+
+Use `isLazy` when the "should this node load lazily?" question depends on runtime data beyond the `lazy` field.
+
+<ParamField body="isLazy" type="(node: OptionItem) => boolean">
+  Called for each node that does not already have `lazy: true` set. Return `true` to treat the node as lazy. `this` inside the function points to the XcaTree component instance. Only evaluated when `optionChildrenFetcher` is configured.
+</ParamField>
+
+<Tabs>
+  <Tab title="Using lazy flag (recommended)">
+    ```js
+    // Simply set lazy: true on the node data — no isLazy needed
+    const treeData = [
+      { value: '1', text: 'Root', lazy: true }
+    ]
+    ```
+  </Tab>
+  <Tab title="Using isLazy for runtime data">
+    ```html
+    <!-- Only load lazily when the API signals there are more children -->
+    <xca-tree
+      :options="treeData"
+      :option-children-fetcher="fetchChildren"
+      :is-lazy="node => !!node.hasMore"
+    />
+    ```
+
+    ```js
+    // Your API response can include a hasMore flag
+    const treeData = [
+      { value: '1', text: 'Root', hasMore: true }
+    ]
+    ```
+  </Tab>
+</Tabs>
+
+## Loading state
+
+While the fetcher is running, XcaTree automatically shows a loading indicator beneath the expanded node. Customise the text with the `loadingText` prop.
+
+<ParamField body="loadingText" type="string" default="'加载中...'">
+  Text shown inside a node's expanded area while its children are being fetched.
+</ParamField>
+
+```html
+<xca-tree
+  :options="treeData"
+  :option-children-fetcher="fetchChildren"
+  loading-text="Fetching children…"
+/>
+```
+
+## After a successful load
+
+Once the fetcher resolves, XcaTree:
+
+- Injects the returned nodes as the children of the expanded node.
+- **Clears the `lazy` flag** on that node automatically, so collapsing and re-expanding it does not trigger another fetch.
+- Converts the returned data into its internal format — your fetcher always works with plain objects.
+
+<Tip>
+  Because `lazy` is cleared after the first load, you can safely collapse and re-expand nodes without worrying about redundant API calls.
+</Tip>
+
+## Legacy alias: `childrenFetchMethod`
+
+`childrenFetchMethod` is a legacy prop that does the same thing as `optionChildrenFetcher`. If both are provided, `optionChildrenFetcher` takes precedence. Prefer `optionChildrenFetcher` in new code.
+
+<ParamField body="childrenFetchMethod" type="(item: OptionItem) => OptionItem | OptionItem[] | Promise<OptionItem | OptionItem[]>">
+  Legacy alias for `optionChildrenFetcher`. Both props are functionally identical. When both are supplied, `optionChildrenFetcher` wins.
+</ParamField>
+
+## Steps to add async loading
+
+<Steps>
+  <Step title="Mark lazy nodes in your data">
+    Add `lazy: true` to every node whose children should be fetched on demand. Alternatively, configure `isLazy` if the condition is dynamic.
+  </Step>
+  <Step title="Write a fetcher function">
+    Create a function that accepts a raw `OptionItem` and returns the children as an array or Promise. Map your API response fields to `value` and `text` (or configure `optionValueKey` / `optionTextKey`).
+  </Step>
+  <Step title="Pass the fetcher to the component">
+    Set `:option-children-fetcher="yourFetcher"` on `<xca-tree>`. Optionally set `loading-text` to a user-friendly message.
+  </Step>
+  <Step title="Propagate lazy marks to sub-nodes">
+    If fetched children may themselves have children, include `lazy: true` (or the `hasMore` equivalent) in the objects you return from the fetcher.
+  </Step>
+</Steps>

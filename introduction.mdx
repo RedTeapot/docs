@@ -1,0 +1,71 @@
+---
+title: "XcaTree: Vue 2.x Tree Component Overview"
+sidebarTitle: "Introduction"
+description: "XcaTree is a Vue 2.x tree component with polished animations, drag-and-drop, async lazy loading, filtering, dark mode support, and TypeScript definitions."
+---
+
+XcaTree is a professional Vue 2.x tree component built for teams that refuse to compromise on UI quality. It ships zero external runtime dependencies — the only peer dependency is Vue 2.x itself — yet it delivers the kind of polished, animated interactions you would normally spend weeks hand-crafting on top of a generic component like `el-tree`. Whether you're building a file browser, an org-chart navigator, or a sidebar menu, XcaTree gives you the full feature set out of the box with a declarative, attribute-driven API.
+
+## Key capabilities
+
+<CardGroup cols={3}>
+  <Card title="Selection modes" icon="check-double">
+    Toggle between single-select and multi-select with the `:multiple` prop. Both modes return your original data objects directly in the `change` event — no wrapper types to unwrap.
+  </Card>
+  <Card title="Drag-and-drop" icon="arrows-up-down-left-right">
+    Enable reordering with `:draggable="true"`. Nodes lift with a shadow, a live placeholder shows the drop target, and the `sortchange` event reports the final `before` / `after` / `inner` placement.
+  </Card>
+  <Card title="Async lazy loading" icon="cloud-arrow-down">
+    Mark nodes as lazy with `lazy: true` in your data and supply an `optionChildrenFetcher` function that returns a Promise. Children load on first expand and are cached automatically.
+  </Card>
+  <Card title="Filtering & search" icon="magnifying-glass">
+    Call `filterOptions(matcher)` programmatically or set `:option-matcher` to wire up the built-in toolbar search box. Matching nodes highlight with a full-row background; parent paths expand automatically.
+  </Card>
+  <Card title="Dark mode & theming" icon="palette">
+    Every color, spacing value, and animation duration is exposed as a CSS custom property. Switch themes by overriding a handful of CSS variables — no style overrides needed.
+  </Card>
+  <Card title="TypeScript support" icon="code">
+    TypeScript declarations ship in `xca-tree.d.ts`. All props, events, and public methods are fully typed, including overloaded `$emit` signatures and generic resolver function types.
+  </Card>
+</CardGroup>
+
+## How XcaTree compares to el-tree
+
+`el-tree` was designed in 2016 and its interaction model shows its age. Achieving smooth drag-and-drop, per-node action menus, or full-row filter highlighting requires you to glue together multiple APIs, manage your own state, and work around edge-case Vue warnings. XcaTree treats these as first-class features:
+
+| Capability | el-tree | XcaTree |
+|---|---|---|
+| Expand / collapse animation | Abrupt or absent | Smooth CSS Grid transition with custom easing |
+| Drag-and-drop feedback | None | Shadow lift + opacity change + live placeholder |
+| Filter highlighting | Text-only match | Full-row background highlight |
+| Per-node action menu | DIY with Popover | Built-in `optionLinks` hover actions |
+| Connection lines | Fixed display | Dynamically shown based on expand state |
+| Empty children placeholder | None | Configurable via `placeholder` prop |
+
+The goal is not to add more configuration knobs — it is to eliminate the boilerplate so you can focus on your business logic.
+
+## Compatibility
+
+<CardGroup cols={2}>
+  <Card title="Vue version" icon="vuejs">
+    Vue **2.x** only. Vue 3 support is on the roadmap but is not yet available. The component is tested against Vue 2.6.x and Vue 2.7.x.
+  </Card>
+  <Card title="Browsers" icon="globe">
+    All modern browsers: Chrome 60+, Firefox 55+, Safari 12+, Edge 79+. Drag-and-drop is implemented with the native HTML5 Drag and Drop API — no polyfills required.
+  </Card>
+</CardGroup>
+
+<Note>
+  XcaTree has **no runtime dependencies** beyond Vue 2.x. You do not need Element UI, Lodash, or any other library installed in your project.
+</Note>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Render your first tree in under 5 minutes using a plain `<script>` tag — no build tools required.
+  </Card>
+  <Card title="Installation" icon="box-open" href="/installation">
+    Add XcaTree to a Webpack, Vite, or Rollup project via npm and set up global or local registration.
+  </Card>
+</CardGroup>

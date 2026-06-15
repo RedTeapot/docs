@@ -1,0 +1,152 @@
+---
+title: "Search and Filter Nodes in XcaTree"
+sidebarTitle: "Filtering"
+description: "Add live search to XcaTree with optionMatcher and filterOptions. Matched nodes highlight automatically and parent paths expand to keep them visible."
+---
+
+XcaTree has a built-in filtering engine that highlights matching nodes and automatically expands the ancestor path so every match stays visible. You can drive filtering from the tree's own toolbar search input by providing an `optionMatcher` function, or trigger it entirely from your own UI by calling `filterOptions` directly — or combine both approaches in the same tree.
+
+## Enable toolbar search with `optionMatcher`
+
+Providing an `optionMatcher` function activates the search icon in the toolbar. When the user clicks the icon and starts typing, XcaTree passes each raw node to your function and shows only nodes for which it returns `true` (plus their ancestors).
+
+```html
+<template>
+  <xca-tree
+    :options="treeData"
+    :option-matcher="matchNode"
+  />
+</template>
+
+<script>
+export default {
+  data() {
+    return {
+      treeData: [ /* ... */ ]
+    }
+  },
+  methods: {
+    matchNode(node) {
+      // `node` is the raw OptionItem object from your data
+      return node.text.toLowerCase().includes(this.keyword.toLowerCase())
+    }
+  }
+}
+</script>
+```
+
+<Note>
+  The `keyword` in the example above is managed by XcaTree internally when the user types into the toolbar search input. When you call `filterOptions` programmatically instead, you close over your own keyword variable.
+</Note>
+
+## `expandOnFilter` — keep matches visible
+
+When `expandOnFilter` is `true` (the default), XcaTree automatically expands every ancestor of a matched node so nothing is hidden. Set it to `false` only if you want to handle expansion yourself.
+
+```html
+<!-- default behaviour: auto-expand ancestor path -->
+<xca-tree :options="treeData" :option-matcher="matchNode" :expand-on-filter="true" />
+
+<!-- manually controlled expansion -->
+<xca-tree :options="treeData" :option-matcher="matchNode" :expand-on-filter="false" />
+```
+
+## Programmatic filtering with `filterOptions`
+
+Call `filterOptions(matcher)` on the component instance to trigger filtering from any external input — a search box in your page header, a tag filter, a URL query parameter, anything. The method applies a 300 ms debounce automatically, so rapid calls from an `input` handler won't hammer the tree. Pass `null` to clear filtering instantly (no debounce).
+
+### Example: text search driven by an external input
+
+```html
+<template>
+  <div>
+    <input
+      v-model="keyword"
+      placeholder="Search nodes…"
+      @input="onSearch"
+    />
+    <xca-tree ref="tree" :options="treeData" />
+  </div>
+</template>
+
+<script>
+export default {
+  data() {
+    return {
+      keyword: '',
+      treeData: [ /* ... */ ]
+    }
+  },
+  methods: {
+    onSearch() {
+      if (!this.keyword.trim()) {
+        // Pass null to clear immediately — no debounce
+        this.$refs.tree.filterOptions(null)
+        return
+      }
+      const kw = this.keyword.toLowerCase()
+      this.$refs.tree.filterOptions(node => node.text.toLowerCase().includes(kw))
+    }
+  }
+}
+</script>
+```
+
+<Tip>
+  Because `filterOptions` already debounces by 300 ms, you do not need to wrap your `@input` handler in an additional debounce. The `null` path bypasses debouncing entirely, so clearing the field feels instant.
+</Tip>
+
+### Example: filter by a custom field
+
+Your matcher receives the full raw node object, so you can filter on any field in your data — not just the display label:
+
+```js
+// Match nodes whose `department` field contains the query
+onDeptFilter(query) {
+  if (!query) {
+    this.$refs.tree.filterOptions(null)
+    return
+  }
+  this.$refs.tree.filterOptions(
+    node => (node.department || '').toLowerCase().includes(query.toLowerCase())
+  )
+}
+```
+
+```js
+// Match leaf nodes only (no children)
+onLeafSearch(keyword) {
+  const kw = keyword.toLowerCase()
+  this.$refs.tree.filterOptions(
+    node => !node.children?.length && node.text.toLowerCase().includes(kw)
+  )
+}
+```
+
+## How matched nodes are highlighted and revealed
+
+When a filter is active XcaTree:
+
+1. **Highlights** every node whose raw data satisfies the matcher — the matching text or the entire row receives a visual accent.
+2. **Auto-expands** ancestor nodes (when `expandOnFilter` is `true`) so no match is hidden behind a collapsed branch.
+3. **Preserves the pre-filter expand state** — when you clear the filter by passing `null`, all branches return to the state they were in before the filter was applied.
+
+## Prop and method reference
+
+<ParamField body="optionMatcher" type="function">
+  `(option: OptionItem) => boolean`
+
+  Activates the toolbar search input. XcaTree calls this function for every node as the user types. Return `true` to include a node in the results. When `null` (the default), the toolbar search icon is not shown.
+</ParamField>
+
+<ParamField body="expandOnFilter" type="boolean" default="true">
+  When `true`, XcaTree automatically expands the ancestor path of every matched node. Set to `false` to suppress auto-expansion.
+</ParamField>
+
+| Method | Description |
+| --- | --- |
+| `filterOptions(matcher)` | Apply a filter programmatically. Accepts an `(option: OptionItem) => boolean` function or `null`. Debounced 300 ms; passing `null` clears immediately. |
+
+<Warning>
+  Calling `filterOptions` with a non-null matcher while `optionMatcher` is also set will use the matcher you pass to `filterOptions`. The two are not additive — the last active matcher wins.
+</Warning>
